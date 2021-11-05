@@ -1,28 +1,35 @@
-use super::ydwg::{YDWGRaw, YDWGParseError, FromStr};
-use super::packet::{Packet};
-use super::message::*;
-use super::types::*;
+//! Parse Raw data to messages
+use crate::yd_raw::{YDRaw, YDRawParseError, FromStr};
+use crate::packet::{Packet};
+use crate::message::*;
+use crate::types::*;
 
 use std::collections::HashMap;
 use std::cmp::min;
 
+/// Holds the state of the parser
+#[derive(Default)]
 pub struct Parser{
-    messages: HashMap<(TSrc,TPgn),Box<dyn Message>>,    // Container (Source,Pgn) -> Message
+    /// Container for messages
+    /// 
+    /// Each Key (TSrc,TPgn) contains a pointer to a Message that might not be fully received
+    messages: HashMap<(TSrc,TPgn),Box<dyn Message>>
 }
+
 impl Parser{
-    /// Initializes a new parser object with a set of predefined parameter groups of interest that are filtered
+    /// Initializes a new parser object
     pub fn new() -> Self{
-        Parser{
-            messages: HashMap::new(),
-        }
+        Parser{..Default::default()}
     }
     
-    pub fn parse_string(&mut self, string: &str) -> Result<Option<Box<dyn Message>>, YDWGParseError>{
-        let raw = YDWGRaw::from_str(string)?;
+    /// Parse from a supplied string
+    pub fn parse_string(&mut self, string: &str) -> Result<Option<Box<dyn Message>>, YDRawParseError>{
+        let raw = YDRaw::from_str(string)?;
         Ok(self.parse(&raw))
     }
 
-    pub fn parse(&mut self, raw: &YDWGRaw) -> Option<Box<dyn Message>>{
+    /// Parse raw data to a Message type
+    pub fn parse(&mut self, raw: &YDRaw) -> Option<Box<dyn Message>>{
         let mut message : Box<dyn Message>;
         
         // Check if there is an incomplete message in the storage,
@@ -58,7 +65,8 @@ impl Parser{
         }
     }
 
-    fn from_raw(message: &mut Box<dyn Message>, raw: &YDWGRaw) -> Result<(),&'static str>{
+    /// Fill the supplied Message with information from the raw data
+    fn from_raw(message: &mut Box<dyn Message>, raw: &YDRaw) -> Result<(),&'static str>{
         //Get the message internals
         let message_bytes = message.bytes();
         let message_fast = message.fast();

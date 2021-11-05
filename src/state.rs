@@ -1,45 +1,51 @@
+//! State of the navigational data.
 use std::fmt;
+use crate::types::*;
 
-/// State that keeps the latest values
+/// Keeps the latest values of the navigational data.
+#[derive(Default)]
 pub struct State{
-    pub timestamp : (u8,u8,f32),
+    /// Time of latest update to the state
+    pub timestamp : Timestamp,
+    /// Apparent wind angle in degrees
     pub awa : f32,
+    /// Apparent wind speed in knots
     pub aws : f32,
+    /// Latitude
     pub latitude : f32,
+    /// Longitude
     pub longitude : f32,
+    /// Heading in degrees
     pub hdg : f32,
+    /// Course over ground in degrees
     pub cog : f32,
+    /// Speed over ground in knots
     pub sog : f32,
+    /// Speed through water in knots
     pub stw : f32,
+    /// Rate of turn in degrees/s
     pub rot : f32,
+    /// Pitch angle in degrees
     pub pitch : f32,
+    /// Yaw angle in degrees
     pub yaw : f32,
+    /// Roll angle in degrees, i.e., heel angle
     pub roll : f32,
+    /// Angle of rudder deflection in degrees
     pub rudder_angle : f32,
 }
 impl State {
+    /// Create new empty State
     pub fn new() -> State{
-        State{
-            timestamp : (0, 0, 0.0),
-            awa : 0.0,
-            aws : 0.0,
-            latitude : 0.0,
-            longitude : 0.0,
-            hdg : 0.0,
-            cog : 0.0,
-            sog : 0.0,
-            stw : 0.0,
-            rot : 0.0,
-            pitch : 0.0,
-            yaw : 0.0,
-            roll : 0.0,
-            rudder_angle : 0.0
-        }
+        State{..Default::default()}
     }
+    /// Print the headline for a CSV document containig all fields seperated by `;`
     pub fn headline() -> String{
         String::from("time;awa;aws;latitude;longitude;hdg;cog;sog;stw;rot;pitch;yaw;roll;rudder_angle")
     }
 }
+
+/// Display state implementation for CSV document with separator `;`
 impl fmt::Display for State{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
         write!(f,

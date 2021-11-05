@@ -1,29 +1,29 @@
 use super::types::*;
 
-#[derive(Debug)]
+#[derive(Default)]
 pub struct Packet{
+    /// Time of the Packet
     pub timestamp: Timestamp,
+    /// Priority
     pub prio: TPrio,
+    /// Source
     pub src: TSrc,
+    /// Destination
     pub dest: TDest,
+    /// Databytes
     pub data: TData,
-    //  ----
-    pub counter_mask : u8,          //Masks the counter value for subsequent packages
-    pub next_packet : u8,           //Keeps track of the packets we received so far
-    pub remaining_bytes : usize,    //Remaining bytes to read from raw
+    
+    /// Masks the counter value for subsequent packages
+    pub counter_mask : u8,         
+    /// Next packet number we expect
+    pub next_packet : u8,          
+    /// Remaining bytes until the packet is complete
+    pub remaining_bytes : usize,   
 }
 impl Packet{
+    /// New empty packet
     pub fn new() -> Self{
-        Packet{
-            timestamp: (0,0,0.0),
-            prio: 0,
-            src: 0,
-            dest: 0,
-            data: TData::new(),
-            counter_mask: 0x00,
-            next_packet: 0,
-            remaining_bytes: 0,
-        }
+        Packet{..Default::default()}
     }
 }
 

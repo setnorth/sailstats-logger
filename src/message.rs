@@ -1,6 +1,6 @@
-use super::state::State;
-use super::packet::{Packet,PacketAccess};
-use super::types::*;
+use crate::state::State;
+use crate::packet::{Packet,PacketAccess};
+use crate::types::*;
 
 use std::f64::consts::PI;
 
@@ -12,7 +12,7 @@ pub trait Message : PacketAccess{
 //*****************************************************************************
 // Message types
 //*****************************************************************************
-/// Creates a message type that implements PacketAccess
+/// Creates a message type that implements the trait PacketAccess
 macro_rules! message_type {
     ($type_name: ident, $pgn: expr, $bytes: expr, $fast: expr) => {
         pub struct $type_name {

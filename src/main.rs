@@ -1,5 +1,5 @@
 //#![allow(dead_code,unused_imports)]
-mod ydwg;
+mod yd_raw;
 mod parser;
 mod message;
 mod state;
