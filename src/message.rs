@@ -1,3 +1,13 @@
+//! Messages that contain data to update the State.
+//! 
+//! A message contains navigational data relating to its type. 
+//! Through the trait `Mesage` it can update the State. The trait `MessageData`
+//! is used for parsing purposes.
+//! 
+//! To generate a new message type the macro `message_type!` can be used. Its input
+//! are a name, a PGN and the expected message length in bytes. The macro implements 
+//! `MessageData`. The trait `Message` with its function `update(&self, s: &mut State)`
+//! needs to be implemented. 
 use crate::state::State;
 use crate::types::*;
 
@@ -20,35 +30,35 @@ pub trait MessageData{
     fn complete(&self) -> bool;
     
     fn timestamp(&self) -> Timestamp;
-    fn mut_timestamp(&mut self) -> &mut Timestamp;
+    fn timestamp_mut(&mut self) -> &mut Timestamp;
 
     fn prio(&self) -> TPrio;
-    fn mut_prio(&mut self) -> &mut TPrio;
+    fn prio_mut(&mut self) -> &mut TPrio;
 
     fn src(&self) -> TSrc;
-    fn mut_src(&mut self) -> &mut TSrc;
+    fn src_mut(&mut self) -> &mut TSrc;
 
     fn dest(&self) -> TDest;
-    fn mut_dest(&mut self) -> &mut TDest;
+    fn dest_mut(&mut self) -> &mut TDest;
     
     fn data(&self) -> &TData;
-    fn mut_data(&mut self) -> &mut TData;
+    fn data_mut(&mut self) -> &mut TData;
 
     fn counter_mask(&self) -> u8;
-    fn mut_counter_mask(&mut self) -> &mut u8;
+    fn counter_mask_mut(&mut self) -> &mut u8;
 
     fn next_packet(&self) -> u8;
-    fn mut_next_packet(&mut self) -> &mut u8;
+    fn next_packet_mut(&mut self) -> &mut u8;
     
     fn remaining_bytes(&self) -> usize;
-    fn mut_remaining_bytes(&mut self) -> &mut usize;
+    fn remaining_bytes_mut(&mut self) -> &mut usize;
 }
 
 //*****************************************************************************
 // Message types
 //*****************************************************************************
 
-/// Creates a message type that implements the trait PacketAccess
+/// Creates a message type that implements the trait MessageData
 macro_rules! message_type {
     ($type_name: ident, $pgn: expr, $bytes: expr, $fast: expr) => {
         #[derive(Default)]
@@ -87,28 +97,28 @@ macro_rules! message_type {
             fn complete(&self) -> bool{ self.remaining_bytes == 0 }
 
             fn timestamp(&self) -> Timestamp{ self.timestamp }
-            fn mut_timestamp(&mut self) -> &mut Timestamp { &mut self.timestamp }
+            fn timestamp_mut(&mut self) -> &mut Timestamp { &mut self.timestamp }
         
             fn prio(&self) -> TPrio { self.prio }
-            fn mut_prio(&mut self) -> &mut TPrio { &mut self.prio }
+            fn prio_mut(&mut self) -> &mut TPrio { &mut self.prio }
         
             fn src(&self) -> TSrc { self.src }
-            fn mut_src(&mut self) -> &mut TSrc { &mut self.src }
+            fn src_mut(&mut self) -> &mut TSrc { &mut self.src }
         
             fn dest(&self) -> TDest { self.dest }
-            fn mut_dest(&mut self) -> &mut TDest { &mut self.dest }
+            fn dest_mut(&mut self) -> &mut TDest { &mut self.dest }
             
             fn data(&self) -> &TData { &self.data }
-            fn mut_data(&mut self) -> &mut TData { &mut self.data }
+            fn data_mut(&mut self) -> &mut TData { &mut self.data }
         
             fn counter_mask(&self) -> u8 { self.counter_mask }
-            fn mut_counter_mask(&mut self) -> &mut u8 {&mut self.counter_mask }
+            fn counter_mask_mut(&mut self) -> &mut u8 {&mut self.counter_mask }
         
             fn next_packet(&self) -> u8 { self.next_packet }
-            fn mut_next_packet(&mut self) -> &mut u8 { &mut self.next_packet }
+            fn next_packet_mut(&mut self) -> &mut u8 { &mut self.next_packet }
             
             fn remaining_bytes(&self) -> usize { self.remaining_bytes }
-            fn mut_remaining_bytes(&mut self) -> &mut usize { &mut self.remaining_bytes }
+            fn remaining_bytes_mut(&mut self) -> &mut usize { &mut self.remaining_bytes }
         }
     }
 }

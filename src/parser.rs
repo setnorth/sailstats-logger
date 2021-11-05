@@ -78,35 +78,35 @@ impl Parser{
                     return Err("Unexpected length for fast packet.");
                 }
                 //Set values and the first 6 bytes for this package
-                *m.mut_timestamp() = raw.timestamp;
-                *m.mut_src() = raw.src;
-                *m.mut_dest() = raw.dest;
-                *m.mut_prio() = raw.prio;
-                *m.mut_counter_mask() = raw.data[0];
-                *m.mut_next_packet() += 1;
-                *m.mut_remaining_bytes() = m.bytes() - 6;
-                (*m.mut_data()).append(&mut raw.data[2..8_usize].to_vec());
+                *m.timestamp_mut() = raw.timestamp;
+                *m.src_mut() = raw.src;
+                *m.dest_mut() = raw.dest;
+                *m.prio_mut() = raw.prio;
+                *m.counter_mask_mut() = raw.data[0];
+                *m.next_packet_mut() += 1;
+                *m.remaining_bytes_mut() = m.bytes() - 6;
+                (*m.data_mut()).append(&mut raw.data[2..8_usize].to_vec());
             } else{ //This packet is already begun
                 //If the packet is the next in series
                 if m.next_packet() == (m.counter_mask() ^ raw.data[0]){
                     let bytes = min(m.remaining_bytes()+1,8) as usize;
-                    (*m.mut_data()).append(&mut raw.data[1..bytes].to_vec());
-                    *m.mut_remaining_bytes() -= min(m.remaining_bytes(),7);
-                    *m.mut_next_packet() += 1;
+                    (*m.data_mut()).append(&mut raw.data[1..bytes].to_vec());
+                    *m.remaining_bytes_mut() -= min(m.remaining_bytes(),7);
+                    *m.next_packet_mut() += 1;
                 } else {
                     //It seems that the previous sequence was not finished. Try to start a new sequence.
                     //Check that only bits in sequence identifier (raw.data[0] & 0b00011111) and sequence
                     //size with what we expect.
                     if ((raw.data[0] & 0x1F) == 0) && ((raw.data[1] as usize) == m.bytes()){
-                        *m.mut_timestamp() = raw.timestamp;
-                        *m.mut_src() = raw.src;
-                        *m.mut_dest() = raw.dest;
-                        *m.mut_prio() = raw.prio;
-                        *m.mut_counter_mask() = raw.data[0];
-                        *m.mut_next_packet() = 0x01;
-                        *m.mut_remaining_bytes() = m.bytes() - 6;
-                        (*m.mut_data()).clear();
-                        (*m.mut_data()).append(&mut raw.data[2..8_usize].to_vec());
+                        *m.timestamp_mut() = raw.timestamp;
+                        *m.src_mut() = raw.src;
+                        *m.dest_mut() = raw.dest;
+                        *m.prio_mut() = raw.prio;
+                        *m.counter_mask_mut() = raw.data[0];
+                        *m.next_packet_mut() = 0x01;
+                        *m.remaining_bytes_mut() = m.bytes() - 6;
+                        (*m.data_mut()).clear();
+                        (*m.data_mut()).append(&mut raw.data[2..8_usize].to_vec());
                     }else{
                         return Err("Fast packet not in sequence.");
                     }
@@ -114,13 +114,13 @@ impl Parser{
             }
         }else{
             //Not a fast packet, i.e., nothing in sequence, read required bytes.
-            *m.mut_timestamp() = raw.timestamp;
-            *m.mut_src() = raw.src;
-            *m.mut_dest() = raw.dest;
-            *m.mut_prio() = raw.prio;
+            *m.timestamp_mut() = raw.timestamp;
+            *m.src_mut() = raw.src;
+            *m.dest_mut() = raw.dest;
+            *m.prio_mut() = raw.prio;
             let bytes = m.bytes();
-            (*m.mut_data()).append(&mut raw.data[0..bytes].to_vec());
-            *m.mut_remaining_bytes() = m.bytes() - m.data().len();
+            (*m.data_mut()).append(&mut raw.data[0..bytes].to_vec());
+            *m.remaining_bytes_mut() = m.bytes() - m.data().len();
         }
         Ok(())
     }
