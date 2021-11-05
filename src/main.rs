@@ -6,9 +6,9 @@ mod state;
 mod types;
 mod udpstream;
 
-use parser::Parser;
-use state::State;
-use udpstream::UdpStream;
+use crate::parser::Parser;
+use crate::state::State;
+use crate::udpstream::UdpStream;
 
 use std::fs::File;
 use std::io::{BufReader, BufRead, BufWriter, Write};

@@ -1,7 +1,7 @@
-//! Messages that contain data to update the State.
+//! Message that is parseable and contains data to update the State.
 //! 
 //! A message contains navigational data relating to its type. 
-//! Through the trait `Mesage` it can update the State. The trait `MessageData`
+//! Through the trait `Message` it can update the State. The trait `MessageData`
 //! is used for parsing purposes.
 //! 
 //! To generate a new message type the macro `message_type!` can be used. Its input
