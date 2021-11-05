@@ -79,7 +79,7 @@ fn main() -> std::io::Result<()> {
     let mut state = State::new();
 
     //Write the headline
-    writer.write_all(format!("{}\n",State::headline().to_string()).as_bytes())?;
+    writer.write_all(format!("{}\n",State::headline()).as_bytes())?;
     
     //If we are writing to stdout flush immediately
     if !writing_to_file{ writer.flush()?; } 
