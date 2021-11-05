@@ -1,6 +1,5 @@
 //! Parse Raw data to messages
 use crate::yd_raw::{YDRaw, YDRawParseError, FromStr};
-use crate::packet::{Packet};
 use crate::message::*;
 use crate::types::*;
 
@@ -66,52 +65,48 @@ impl Parser{
     }
 
     /// Fill the supplied Message with information from the raw data
-    fn from_raw(message: &mut Box<dyn Message>, raw: &YDRaw) -> Result<(),&'static str>{
-        //Get the message internals
-        let message_bytes = message.bytes();
-        let message_fast = message.fast();
-        let p : &mut Packet = message.packet_mut();
-
+    fn from_raw(m: &mut Box<dyn Message>, raw: &YDRaw) -> Result<(),&'static str>{
         //Is this a fast message?
-        if message_fast{
+        if m.fast(){
             //Is this the first package? (If we haven't read anything yet)
             //And is everything except the sequence identifier zero in the first bit?
-            if (p.next_packet == 0) && ((raw.data[0] & 0x1F) == 0){
+            if (m.next_packet() == 0) && ((raw.data[0] & 0x1F) == 0){
                 //Check if this packet has the same length as we expect to see
-                if message_bytes != raw.data[1] as usize{
+                if m.bytes() != raw.data[1] as usize{
                     //The following error could also occur when we start the program and the
                     //first packet we read is in the middle of a sequence.
                     return Err("Unexpected length for fast packet.");
                 }
                 //Set values and the first 6 bytes for this package
-                p.timestamp = raw.timestamp;
-                p.src = raw.src;
-                p.dest = raw.dest;
-                p.prio = raw.prio;
-                p.counter_mask = raw.data[0];
-                p.next_packet += 1;
-                p.remaining_bytes = message_bytes - 6;
-                p.data.append(&mut raw.data[2..8_usize].to_vec());
+                *m.mut_timestamp() = raw.timestamp;
+                *m.mut_src() = raw.src;
+                *m.mut_dest() = raw.dest;
+                *m.mut_prio() = raw.prio;
+                *m.mut_counter_mask() = raw.data[0];
+                *m.mut_next_packet() += 1;
+                *m.mut_remaining_bytes() = m.bytes() - 6;
+                (*m.mut_data()).append(&mut raw.data[2..8_usize].to_vec());
             } else{ //This packet is already begun
                 //If the packet is the next in series
-                if p.next_packet == (p.counter_mask ^ raw.data[0]){
-                    p.data.append(&mut raw.data[1..(min(p.remaining_bytes+1,8)) as usize].to_vec());
-                    p.remaining_bytes -= min(p.remaining_bytes,7);
-                    p.next_packet += 1;
+                if m.next_packet() == (m.counter_mask() ^ raw.data[0]){
+                    let bytes = min(m.remaining_bytes()+1,8) as usize;
+                    (*m.mut_data()).append(&mut raw.data[1..bytes].to_vec());
+                    *m.mut_remaining_bytes() -= min(m.remaining_bytes(),7);
+                    *m.mut_next_packet() += 1;
                 } else {
                     //It seems that the previous sequence was not finished. Try to start a new sequence.
                     //Check that only bits in sequence identifier (raw.data[0] & 0b00011111) and sequence
                     //size with what we expect.
-                    if ((raw.data[0] & 0x1F) == 0) && ((raw.data[1] as usize) == message_bytes){
-                        p.timestamp = raw.timestamp;
-                        p.src = raw.src;
-                        p.dest = raw.dest;
-                        p.prio = raw.prio;
-                        p.counter_mask = raw.data[0];
-                        p.next_packet = 0x01;
-                        p.remaining_bytes = message_bytes - 6;
-                        p.data.clear();
-                        p.data.append(&mut raw.data[2..8_usize].to_vec());
+                    if ((raw.data[0] & 0x1F) == 0) && ((raw.data[1] as usize) == m.bytes()){
+                        *m.mut_timestamp() = raw.timestamp;
+                        *m.mut_src() = raw.src;
+                        *m.mut_dest() = raw.dest;
+                        *m.mut_prio() = raw.prio;
+                        *m.mut_counter_mask() = raw.data[0];
+                        *m.mut_next_packet() = 0x01;
+                        *m.mut_remaining_bytes() = m.bytes() - 6;
+                        (*m.mut_data()).clear();
+                        (*m.mut_data()).append(&mut raw.data[2..8_usize].to_vec());
                     }else{
                         return Err("Fast packet not in sequence.");
                     }
@@ -119,12 +114,13 @@ impl Parser{
             }
         }else{
             //Not a fast packet, i.e., nothing in sequence, read required bytes.
-            p.timestamp = raw.timestamp;
-            p.src = raw.src;
-            p.dest = raw.dest;
-            p.prio = raw.prio;
-            p.data.append(&mut raw.data[0..message_bytes].to_vec());
-            p.remaining_bytes = message_bytes - p.data.len();
+            *m.mut_timestamp() = raw.timestamp;
+            *m.mut_src() = raw.src;
+            *m.mut_dest() = raw.dest;
+            *m.mut_prio() = raw.prio;
+            let bytes = m.bytes();
+            (*m.mut_data()).append(&mut raw.data[0..bytes].to_vec());
+            *m.mut_remaining_bytes() = m.bytes() - m.data().len();
         }
         Ok(())
     }

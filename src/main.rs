@@ -3,7 +3,6 @@ mod yd_raw;
 mod parser;
 mod message;
 mod state;
-mod packet;
 mod types;
 mod udpstream;
 
