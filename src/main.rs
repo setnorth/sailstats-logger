@@ -5,6 +5,7 @@ mod message;
 mod state;
 mod types;
 mod udpstream;
+mod nmea2000;
 
 use crate::parser::Parser;
 use crate::state::State;

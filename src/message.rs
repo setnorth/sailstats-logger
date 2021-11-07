@@ -10,52 +10,10 @@
 //! needs to be implemented. 
 use crate::state::State;
 use crate::types::*;
-use crate::yd_raw::YDRaw;
+use crate::nmea2000::*;
 
 use std::f64::consts::PI;
 use std::cmp;
-
-
-/// NMEA2000 Raw format
-pub trait N2kRaw {
-    fn timestamp(&self) -> Timestamp;
-    fn src(&self) -> TSrc;
-    fn dest(&self) -> TDest;
-    fn prio(&self) -> TPrio;
-    fn pgn(&self) -> TPgn;
-    fn data(&self) -> TData;
-}
-
-impl N2kRaw for YDRaw{
-    fn timestamp(&self) -> Timestamp { self.timestamp }
-    fn src(&self) -> TSrc { self.src }
-    fn dest(&self) -> TDest { self.dest }
-    fn prio(&self) -> TPrio { self.prio }
-    fn pgn(&self) -> TPgn { self.pgn }
-    fn data(&self) -> TData { self.data.to_vec() }
-}
-
-pub enum N2kMessageErr{
-    /// The supplied raw packet is out of sequence
-    OutOfSequence,
-    /// The supplied raw packet is of unexpected length
-    UnexpectedLength
-}
-
-pub trait N2kFromRaw<T: N2kRaw + ?Sized>{
-    /// Returns true if the message is complete.
-    fn is_complete(&self) -> bool;
-    
-    /// Parses message from a N2kRaw type.
-    /// 
-    /// Returns `()` if all data was copied an `N2kMessageErr` in case of a parsing error.
-    fn from_raw(&mut self, raw: &T) -> Result<(),N2kMessageErr>;
-}
-
-/// Messages can update the state and must contain data
-pub trait N2kMessage : N2kFromRaw<dyn N2kRaw>{
-    fn update(&self, s: &mut State);
-}
 
 //*****************************************************************************
 // Message types
@@ -93,7 +51,6 @@ macro_rules! message_type {
             pub fn new() -> Self{ $type_name{..Default::default()} }
         }
         
-        //TODO: Down from here we can implement with impl<T: N2kRaw>
         impl N2kFromRaw<dyn N2kRaw> for $type_name{
             fn is_complete(&self) -> bool {
                 match self.remaining_bytes{
@@ -104,6 +61,8 @@ macro_rules! message_type {
 
             fn from_raw(&mut self, raw: &dyn N2kRaw) -> Result<(),N2kMessageErr>{
                 //Is this a fast message?
+                //(This part is most likely optimized in the compiler and only present
+                // in messages which are consisting of several raw-packets)
                 if $type_name::FAST {
                     //If we are just starting this new fast package
                     if (self.next_packet == 0) && (raw.data()[0] & 0x1F == 0){

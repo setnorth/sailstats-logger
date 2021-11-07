@@ -19,6 +19,7 @@ use std::num::{ParseIntError, ParseFloatError};
 use std::io::{Error, ErrorKind};
 use std::fmt;
 use crate::types::*;
+use crate::nmea2000::*;
 
 pub use std::str::FromStr;
 
@@ -37,6 +38,15 @@ pub struct YDRaw{
     pub pgn : u32,
     pub src : u8,
     pub dest : u8
+}
+
+impl N2kRaw for YDRaw{
+    fn timestamp(&self) -> Timestamp { self.timestamp }
+    fn src(&self) -> TSrc { self.src }
+    fn dest(&self) -> TDest { self.dest }
+    fn prio(&self) -> TPrio { self.prio }
+    fn pgn(&self) -> TPgn { self.pgn }
+    fn data(&self) -> TData { self.data.to_vec() }
 }
 
 /// Denotes the direction, i.e., if a package was received or transmitted.
