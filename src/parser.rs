@@ -29,7 +29,7 @@ impl Parser{
     /// Parse raw data to a Message type
     /// 
     /// Returns either a `Some(Message)` if the message is complete or `None`
-    pub fn parse(&mut self, raw: &(dyn N2kRaw + 'static)) -> Option<Box<dyn N2kMessage>>{
+    pub fn parse<T: N2kRaw + 'static>(&mut self, raw: &T) -> Option<Box<dyn N2kMessage>>{
         let mut message : Box<dyn N2kMessage>;
         
         // Check if there is an incomplete message in the storage,
