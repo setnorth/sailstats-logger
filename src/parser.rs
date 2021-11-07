@@ -2,6 +2,7 @@
 use crate::yd_raw::{YDRaw, YDRawParseError, FromStr};
 use crate::message::*;
 use crate::types::*;
+use crate::nmea2000::{N2kMessage, N2kRaw};
 
 use std::collections::HashMap;
 
