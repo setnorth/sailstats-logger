@@ -1,15 +1,11 @@
 //#![allow(dead_code,unused_imports)]
-mod yd_raw;
-mod parser;
-mod message;
 mod state;
-mod types;
 mod udpstream;
-mod nmea2000;
+mod nmea;
 
-use crate::parser::Parser;
 use crate::state::State;
 use crate::udpstream::UdpStream;
+use crate::nmea::nmea2000;
 
 use std::fs::File;
 use std::io::{BufReader, BufRead, BufWriter, Write};
@@ -76,7 +72,7 @@ fn main() -> std::io::Result<()> {
     let reader = BufReader::new(in_stream);
     let mut writer = BufWriter::new(out_stream);
 
-    let mut parser = Parser::new();
+    let mut parser = nmea2000::Parser::new();
     let mut state = State::new();
 
     //Write the headline

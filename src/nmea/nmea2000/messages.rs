@@ -1,30 +1,17 @@
-//! Message that is parseable and contains data to update the State.
-//! 
-//! A message contains navigational data relating to its type. 
-//! Through the trait `Message` it can update the State. The trait `MessageData`
-//! is used for parsing purposes.
-//! 
-//! To generate a new message type the macro `message_type!` can be used. Its input
-//! are a name, a PGN and the expected message length in bytes. The macro implements 
-//! `MessageData`. The trait `Message` with its function `update(&self, s: &mut State)`
-//! needs to be implemented. 
+//! nmea2000::Message types 
 use crate::state::State;
-use crate::types::*;
-use crate::nmea2000::*;
+use crate::nmea::types::{TData, TDest, TPgn, TPrio, TSrc, Timestamp};
+use crate::nmea::nmea2000;
 
 use std::f64::consts::PI;
 use std::cmp;
 
-//*****************************************************************************
-// Message types
-//*****************************************************************************
-
-/// Creates a message type that implements the trait MessageData
+/// Creates a message type that implements the trait nmea2000::MessageData
 macro_rules! message_type {
     ($type_name: ident, $pgn: expr, $bytes: expr, $fast: expr) => {
         #[derive(Default)]
         pub struct $type_name {
-            /// Time of the Message
+            /// Time of the nmea2000::Message
             pub timestamp: Timestamp,
             /// Priority
             pub prio: TPrio,
@@ -39,7 +26,7 @@ macro_rules! message_type {
             pub counter_mask : u8,         
             /// Next message number we expect
             pub next_packet : u8,          
-            /// Remaining bytes until the Message is complete
+            /// Remaining bytes until the nmea2000::Message is complete
             pub remaining_bytes : usize,               
         }
         
@@ -51,7 +38,7 @@ macro_rules! message_type {
             pub fn new() -> Self{ $type_name{..Default::default()} }
         }
         
-        impl N2kFromRaw<dyn N2kRaw> for $type_name{
+        impl nmea2000::FromRaw<dyn nmea2000::Raw> for $type_name{
             fn is_complete(&self) -> bool {
                 match self.remaining_bytes{
                     0 => true,
@@ -59,7 +46,7 @@ macro_rules! message_type {
                 }
             }
 
-            fn from_raw(&mut self, raw: &dyn N2kRaw) -> Result<(),N2kMessageErr>{
+            fn from_raw(&mut self, raw: &dyn nmea2000::Raw) -> Result<(),nmea2000::MessageErr>{
                 //Is this a fast message?
                 //(This part is most likely optimized in the compiler and only present
                 // in messages which are consisting of several raw-packets)
@@ -68,7 +55,7 @@ macro_rules! message_type {
                     if (self.next_packet == 0) && (raw.data()[0] & 0x1F == 0){
                         //Check if this packet has the same length as we expect to see
                         if $type_name::BYTES != raw.data()[1] as usize {
-                            return Err(N2kMessageErr::UnexpectedLength);
+                            return Err(nmea2000::MessageErr::UnexpectedLength);
                         }
                         //Set values and the first 6 bytes for this package
                         self.timestamp = raw.timestamp();
@@ -101,7 +88,7 @@ macro_rules! message_type {
                                 self.data.clear();
                                 self.data.append(&mut raw.data()[2..8_usize].to_vec());
                             } else {
-                                return Err(N2kMessageErr::OutOfSequence);
+                                return Err(nmea2000::MessageErr::OutOfSequence);
                             }
                         }
                     }
@@ -120,7 +107,7 @@ macro_rules! message_type {
 }
 
 message_type!(WindMessage, 130306, 8, false);
-impl N2kMessage for WindMessage{
+impl nmea2000::Message for WindMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.aws = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01 * 1.943_844_6; //in knots;
@@ -129,7 +116,7 @@ impl N2kMessage for WindMessage{
 }
 
 message_type!(PositionRapidUpdateMessage, 129025, 8, false);
-impl N2kMessage for PositionRapidUpdateMessage{
+impl nmea2000::Message for PositionRapidUpdateMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         let mut lat = i32::from_le_bytes([  
@@ -151,7 +138,7 @@ impl N2kMessage for PositionRapidUpdateMessage{
 }
 
 message_type!(GNSSPositionData, 129029, 43, true);
-impl N2kMessage for GNSSPositionData{
+impl nmea2000::Message for GNSSPositionData{
     fn update(&self, s : &mut State){
         s.timestamp = self.timestamp;
         //Latitude
@@ -182,7 +169,7 @@ impl N2kMessage for GNSSPositionData{
 }
 
 message_type!(VesselHeadingMessage, 127250, 8, false);
-impl N2kMessage for VesselHeadingMessage{
+impl nmea2000::Message for VesselHeadingMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.hdg = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
@@ -190,7 +177,7 @@ impl N2kMessage for VesselHeadingMessage{
 }
 
 message_type!(CogSogRapidUpdateMessage, 129026, 8, false);
-impl N2kMessage for CogSogRapidUpdateMessage{
+impl nmea2000::Message for CogSogRapidUpdateMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.cog = u16::from_le_bytes([self.data[2],self.data[3]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
@@ -199,7 +186,7 @@ impl N2kMessage for CogSogRapidUpdateMessage{
 }
 
 message_type!(SpeedMessage, 128259, 8, false);
-impl N2kMessage for SpeedMessage{
+impl nmea2000::Message for SpeedMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.stw = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01 * 1.943_844_6; //in knots
@@ -207,7 +194,7 @@ impl N2kMessage for SpeedMessage{
 }
 
 message_type!(RateOfTurnMessage, 127251, 5, false);
-impl N2kMessage for RateOfTurnMessage{
+impl nmea2000::Message for RateOfTurnMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.rot = i32::from_le_bytes([self.data[1],
@@ -218,7 +205,7 @@ impl N2kMessage for RateOfTurnMessage{
 }
 
 message_type!(AttitudeMessage, 127257, 7, false);
-impl N2kMessage for AttitudeMessage{
+impl nmea2000::Message for AttitudeMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.yaw = i16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
@@ -228,7 +215,7 @@ impl N2kMessage for AttitudeMessage{
 }
 
 message_type!(RudderMessage, 127245, 8, false);
-impl N2kMessage for RudderMessage{
+impl nmea2000::Message for RudderMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         let value = i16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.0001;

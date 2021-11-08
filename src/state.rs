@@ -1,6 +1,6 @@
 //! State of the navigational data.
 use std::fmt;
-use crate::types::*;
+use crate::nmea::types::Timestamp;
 
 /// Keeps the latest values of the navigational data.
 #[derive(Default)]

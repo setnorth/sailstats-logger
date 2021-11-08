@@ -1,4 +1,4 @@
-//! Tools to read Yacht Devices Raw format messages from string.
+//! Tools to read Yacht Devices Raw format messages from string. Implements the `N2kRaw` trait.
 //! 
 //! Yacht Devices Raw format:
 //! 
@@ -18,15 +18,16 @@
 use std::num::{ParseIntError, ParseFloatError};
 use std::io::{Error, ErrorKind};
 use std::fmt;
-use crate::types::*;
-use crate::nmea2000::*;
+
+use crate::nmea::types::{TData, TDest, TPgn, TPrio, TSrc, Timestamp};
+use crate::nmea::nmea2000;
 
 pub use std::str::FromStr;
 
 /// Holds a YDRaw message.
 /// 
 /// The values for priority, pgn, src and dest are derived.
-pub struct YDRaw{
+pub struct Raw{
     //Parsed values
     pub timestamp : Timestamp,
     pub direction : YDRawDirection,
@@ -40,7 +41,7 @@ pub struct YDRaw{
     pub dest : u8
 }
 
-impl N2kRaw for YDRaw{
+impl nmea2000::Raw for Raw{
     fn timestamp(&self) -> Timestamp { self.timestamp }
     fn src(&self) -> TSrc { self.src }
     fn dest(&self) -> TDest { self.dest }
@@ -53,7 +54,7 @@ impl N2kRaw for YDRaw{
 pub enum YDRawDirection {Received,Transmitted}
 
 /// Createes a YDRawRaw package from a string
-impl FromStr for YDRaw{
+impl FromStr for Raw{
     type Err = YDRawParseError;
     fn from_str(s : &str) -> Result<Self,Self::Err> {
         // Split data fields
@@ -108,7 +109,7 @@ impl FromStr for YDRaw{
             data[i] = u8::from_str_radix(f,16)?;
         }
         
-        Ok(YDRaw{
+        Ok(Raw{
             timestamp, 
             direction,
             msgid, 
@@ -122,7 +123,7 @@ impl FromStr for YDRaw{
 }
 
 /// Display trait implementation
-impl fmt::Display for YDRaw{
+impl fmt::Display for Raw{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
         write!(f,"{:02}:{:02}:{:0>6.3} ",self.timestamp.0, self.timestamp.1, self.timestamp.2)?;
         match self.direction {

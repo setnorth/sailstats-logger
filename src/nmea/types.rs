@@ -1,16 +1,16 @@
 //! Types definitions
 
-/// Time in the format HH:mm:ss.SSS 
+/// Time in the format `(HH,mm,ss.SSS)`
 /// 
 /// Fields are as follows:
 /// 
-/// HH - Hours in 24h format
+/// `u8: HH` - Hours in 24h format
 /// 
-/// mm - minutes
+/// `u9: mm` - minutes
 /// 
-/// ss - seconds
+/// `f32: ss` - seconds
 /// 
-/// SSS - milliseconds
+/// `f32': SSS` - milliseconds
 pub type Timestamp = (u8,u8,f32);
 
 /// Parameter group number
