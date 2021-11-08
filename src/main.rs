@@ -72,7 +72,7 @@ fn main() -> std::io::Result<()> {
     let reader = BufReader::new(in_stream);
     let mut writer = BufWriter::new(out_stream);
 
-    let mut parser = nmea2000::Parser::new();
+    let mut parser = nmea2000::Parser2::<nmea2000::yd::Raw>::new();
     let mut state = State::new();
 
     //Write the headline
@@ -84,7 +84,7 @@ fn main() -> std::io::Result<()> {
     //Start timer for the print out interval
     let mut time : Instant = Instant::now();
     for line in reader.lines(){
-        if let Some(message) = parser.parse_string(&line?)?{
+        if let Some(message) = parser.parse_string(&line?).unwrap(){
             message.update(&mut state);
             if time.elapsed().as_millis() >= opt.interval || reading_from_file {
                 writer.write_all(

@@ -27,6 +27,7 @@ pub use std::str::FromStr;
 /// Holds a YDRaw message.
 /// 
 /// The values for priority, pgn, src and dest are derived.
+#[derive(Debug)]
 pub struct Raw{
     //Parsed values
     pub timestamp : Timestamp,
@@ -51,6 +52,7 @@ impl nmea2000::Raw for Raw{
 }
 
 /// Denotes the direction, i.e., if a package was received or transmitted.
+#[derive(Debug)]
 pub enum YDRawDirection {Received,Transmitted}
 
 /// Createes a YDRawRaw package from a string
@@ -142,12 +144,14 @@ impl fmt::Display for Raw{
  * Error Handling
  */
 /// Error type for the YDRawParser
+#[derive(Debug)]
 pub enum YDRawParseError {
     IntegerError(ParseIntError),
     FloatError(ParseFloatError),
     IteratorError,
     InvalidField
 }
+impl std::error::Error for YDRawParseError {}
 
 /// Converts ParseIntError to YDRawParseError
 impl From<ParseIntError> for YDRawParseError{

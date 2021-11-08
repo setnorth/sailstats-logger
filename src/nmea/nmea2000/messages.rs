@@ -37,10 +37,8 @@ macro_rules! message_type {
 
             pub fn new() -> Self{ $type_name{..Default::default()} }
         }
-        
-        impl nmea2000::FromRaw for $type_name{
-            type RawType = dyn nmea2000::Raw;
-            
+
+        impl<T: nmea2000::Raw> nmea2000::FromRaw<T> for $type_name{
             fn is_complete(&self) -> bool {
                 match self.remaining_bytes{
                     0 => true,
@@ -48,7 +46,7 @@ macro_rules! message_type {
                 }
             }
 
-            fn from_raw(&mut self, raw: &Self::RawType) -> Result<(),nmea2000::MessageErr>{
+            fn from_raw(&mut self, raw: &T) -> Result<(),nmea2000::MessageErr>{
                 //Is this a fast message?
                 //(This part is most likely optimized in the compiler and only present
                 // in messages which are consisting of several raw-packets)
@@ -109,7 +107,7 @@ macro_rules! message_type {
 }
 
 message_type!(WindMessage, 130306, 8, false);
-impl nmea2000::Message for WindMessage{
+impl<T: nmea2000::Raw> nmea2000::Message<T> for WindMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.aws = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01 * 1.943_844_6; //in knots;
@@ -117,7 +115,7 @@ impl nmea2000::Message for WindMessage{
     }
 }
 
-message_type!(PositionRapidUpdateMessage, 129025, 8, false);
+/*message_type!(PositionRapidUpdateMessage, 129025, 8, false);
 impl nmea2000::Message for PositionRapidUpdateMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
@@ -226,4 +224,4 @@ impl nmea2000::Message for RudderMessage{
             s.rudder_angle =  value * 360.0 / 2.0 / PI as f32;
         }
     }
-}
+}*/
