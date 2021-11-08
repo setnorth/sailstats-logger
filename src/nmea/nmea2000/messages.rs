@@ -38,7 +38,9 @@ macro_rules! message_type {
             pub fn new() -> Self{ $type_name{..Default::default()} }
         }
         
-        impl nmea2000::FromRaw<dyn nmea2000::Raw> for $type_name{
+        impl nmea2000::FromRaw for $type_name{
+            type RawType = dyn nmea2000::Raw;
+            
             fn is_complete(&self) -> bool {
                 match self.remaining_bytes{
                     0 => true,
@@ -46,7 +48,7 @@ macro_rules! message_type {
                 }
             }
 
-            fn from_raw(&mut self, raw: &dyn nmea2000::Raw) -> Result<(),nmea2000::MessageErr>{
+            fn from_raw(&mut self, raw: &Self::RawType) -> Result<(),nmea2000::MessageErr>{
                 //Is this a fast message?
                 //(This part is most likely optimized in the compiler and only present
                 // in messages which are consisting of several raw-packets)
