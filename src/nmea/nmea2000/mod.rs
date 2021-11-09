@@ -20,15 +20,16 @@ pub trait Raw{
     fn data(&self) -> TData;
 }
 
-/// Read a `Raw` packet from some type `T`.
+/// Read a `Raw` packet from some type `T`
 pub trait From<T>{
-    /// Read a `Raw` packet from some type `T`.
+    /// Reads a `Raw` packet from some type `T`.
     fn from(s: &T) -> Result<Self,Box<dyn std::error::Error>> where 
         Self: Raw + Sized;
 }
 
-/// `Message` of some `Raw`-type `T` that can update the State
+/// Message as interface to the frontend for `State` updating
 pub trait Message<T: Raw> : FromRaw<T>{
+    /// Updates a supplied state `s` with the message's information.
     fn update(&self, s: &mut State);
 }
 
@@ -49,15 +50,58 @@ pub enum MessageErr{
     UnexpectedLength
 }
 
-/// Parser for that parses some `Raw` of type `T` from values of type `U`.
+/// Parser for NMEA2000 messages
+/// 
+/// Used to initiate a flexible parser object that accepts different kinds of [`Raw`] types with different
+/// kind of [`From`] interfaces to buses, files, lines etc. 
+/// 
+/// Type `T` denotes the [`Raw`]-type, `U` is the [`Raw`]'s source type. `U` is not used in the `struct` 
+/// initialization but later in its method implementation.
+/// 
+/// # Examples
+/// 
+/// ```
+/// use nmea::nmea2000;
+/// use nmea::nmea2000::yd;
+/// 
+/// let mut parser = nmea2000::Parser::<yd::Raw,String>::new();
+/// ```
 pub struct Parser<T,U>{
+    /// Messages are stored here if they are not completely received.
     messages: HashMap<(TSrc, TPgn), Box<dyn Message<T>>>,
-    phantom: marker::PhantomData<U>
+    /// Unused variable that is only required in order to have a type `U` for the [`Raw`]'s
+    /// implementation of the [`From`] trait.
+    _phantom: marker::PhantomData<U>
 }
 
 impl<T: Raw + From<U>,U> Parser<T,U>{
-    pub fn new() -> Self{ Parser::<T,U>{messages: HashMap::new(), phantom: marker::PhantomData} }
+    /// Returns a new [`Parser`]
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use nmea::nmea2000;
+    /// use nmea::nmea2000::yd;
+    /// 
+    /// let mut parser = nmea2000::Parser::<yd::Raw,String>::new();
+    /// ```
+    pub fn new() -> Self{ Parser::<T,U>{messages: HashMap::new(), _phantom: marker::PhantomData} }
 
+    /// Parses first the source type `U` into a [`Raw`] and calls then [`Parser::parse_from_raw`] with the newly
+    /// created [`Raw`] instance. Returns `Ok(Some(message))` if a complete message was received by this
+    /// source packet.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use nmea::nmea2000;
+    /// use nmea::nmea2000::yd;
+    /// 
+    /// let mut parser = nmea2000::Parser::<yd::Raw,String>::new();
+    /// if let Some(message) = parser.parse("123".to_string()).unwrap() {
+    ///     //New message received
+    /// }
+    /// ```
     pub fn parse(&mut self, src: &U) -> Result<Option<Box<dyn Message<T>>>,Box<dyn std::error::Error>>{
         let raw = T::from(src)?;
         Ok(self.parse_from_raw(&raw))
