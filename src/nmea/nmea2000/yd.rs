@@ -15,8 +15,6 @@
 //!  • b0..b7 — message data bytes (from 1 to 8) in hexadecimal format
 //! 
 //!  • `<CR><LF>`
-use std::num::{ParseIntError, ParseFloatError};
-use std::io::{Error, ErrorKind};
 use std::fmt;
 
 use crate::nmea::types::{TData, TDest, TPgn, TPrio, TSrc, Timestamp};
@@ -27,7 +25,6 @@ pub use std::str::FromStr;
 /// Holds a YDRaw message.
 /// 
 /// The values for priority, pgn, src and dest are derived.
-#[derive(Debug)]
 pub struct Raw{
     //Parsed values
     pub timestamp : Timestamp,
@@ -51,14 +48,8 @@ impl nmea2000::Raw for Raw{
     fn data(&self) -> TData { self.data.to_vec() }
 }
 
-/// Denotes the direction, i.e., if a package was received or transmitted.
-#[derive(Debug)]
-pub enum YDRawDirection {Received,Transmitted}
-
-/// Createes a YDRawRaw package from a string
-impl FromStr for Raw{
-    type Err = YDRawParseError;
-    fn from_str(s : &str) -> Result<Self,Self::Err> {
+impl nmea2000::From<String> for Raw{
+    fn from(s: &String) -> Result<Self, Box<dyn std::error::Error>>{
         // Split data fields
         let mut fields = s.split_whitespace();
         
@@ -75,7 +66,7 @@ impl FromStr for Raw{
         let direction = match d{
             "R" => YDRawDirection::Received,
             "T" => YDRawDirection::Transmitted,
-            _ => return Err(YDRawParseError::InvalidField)
+            _ => return Err(Box::new(YDRawParseError::InvalidField))
         };
 
         //Parse Message Id
@@ -124,6 +115,10 @@ impl FromStr for Raw{
     }
 }
 
+/// Denotes the direction, i.e., if a package was received or transmitted.
+#[derive(Debug)]
+pub enum YDRawDirection {Received,Transmitted}
+
 /// Display trait implementation
 impl fmt::Display for Raw{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
@@ -146,42 +141,18 @@ impl fmt::Display for Raw{
 /// Error type for the YDRawParser
 #[derive(Debug)]
 pub enum YDRawParseError {
-    IntegerError(ParseIntError),
-    FloatError(ParseFloatError),
     IteratorError,
     InvalidField
 }
 impl std::error::Error for YDRawParseError {}
 
-/// Converts ParseIntError to YDRawParseError
-impl From<ParseIntError> for YDRawParseError{
-    fn from(err : ParseIntError) -> YDRawParseError{
-        YDRawParseError::IntegerError(err)
-    }
-}
-
-/// Converts ParseFloatError to YDRawParseError
-impl From<ParseFloatError> for YDRawParseError{
-    fn from(err : ParseFloatError) -> YDRawParseError{
-        YDRawParseError::FloatError(err)
-    }
-}
-
 /// Display trait implementation of YDRawParseError
 impl fmt::Display for YDRawParseError{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
         match &*self {
-            YDRawParseError::IntegerError(err) => err.fmt(f),
-            YDRawParseError::FloatError(err) => err.fmt(f),
             YDRawParseError::IteratorError => write!(f, "Empty Iterator."),
             YDRawParseError::InvalidField => write!(f, "Invalid input.")
         }
     }
 }
 
-/// Converts YDRawParseError to Error
-impl From<YDRawParseError> for Error{
-    fn from(err : YDRawParseError) -> Error{
-        Error::new(ErrorKind::InvalidInput,err.to_string())
-    }
-}

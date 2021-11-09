@@ -116,7 +116,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for WindMessage{
 }
 
 /*message_type!(PositionRapidUpdateMessage, 129025, 8, false);
-impl nmea2000::Message for PositionRapidUpdateMessage{
+impl<T: nmea2000::Raw> nmea2000::Message<T> for PositionRapidUpdateMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         let mut lat = i32::from_le_bytes([  
@@ -138,7 +138,7 @@ impl nmea2000::Message for PositionRapidUpdateMessage{
 }
 
 message_type!(GNSSPositionData, 129029, 43, true);
-impl nmea2000::Message for GNSSPositionData{
+impl<T: nmea2000::Raw> nmea2000::Message<T> for GNSSPositionData{
     fn update(&self, s : &mut State){
         s.timestamp = self.timestamp;
         //Latitude
@@ -169,7 +169,7 @@ impl nmea2000::Message for GNSSPositionData{
 }
 
 message_type!(VesselHeadingMessage, 127250, 8, false);
-impl nmea2000::Message for VesselHeadingMessage{
+impl<T: nmea2000::Raw> nmea2000::Message<T> for VesselHeadingMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.hdg = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
@@ -177,7 +177,7 @@ impl nmea2000::Message for VesselHeadingMessage{
 }
 
 message_type!(CogSogRapidUpdateMessage, 129026, 8, false);
-impl nmea2000::Message for CogSogRapidUpdateMessage{
+impl<T: nmea2000::Raw> nmea2000::Message<T> for CogSogRapidUpdateMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.cog = u16::from_le_bytes([self.data[2],self.data[3]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
@@ -186,7 +186,7 @@ impl nmea2000::Message for CogSogRapidUpdateMessage{
 }
 
 message_type!(SpeedMessage, 128259, 8, false);
-impl nmea2000::Message for SpeedMessage{
+impl<T: nmea2000::Raw> nmea2000::Message<T> for SpeedMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.stw = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01 * 1.943_844_6; //in knots
@@ -194,7 +194,7 @@ impl nmea2000::Message for SpeedMessage{
 }
 
 message_type!(RateOfTurnMessage, 127251, 5, false);
-impl nmea2000::Message for RateOfTurnMessage{
+impl<T: nmea2000::Raw> nmea2000::Message<T> for RateOfTurnMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.rot = i32::from_le_bytes([self.data[1],
@@ -205,7 +205,7 @@ impl nmea2000::Message for RateOfTurnMessage{
 }
 
 message_type!(AttitudeMessage, 127257, 7, false);
-impl nmea2000::Message for AttitudeMessage{
+impl<T: nmea2000::Raw> nmea2000::Message<T> for AttitudeMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         s.yaw = i16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
@@ -215,7 +215,7 @@ impl nmea2000::Message for AttitudeMessage{
 }
 
 message_type!(RudderMessage, 127245, 8, false);
-impl nmea2000::Message for RudderMessage{
+impl<T: nmea2000::Raw> nmea2000::Message<T> for RudderMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
         let value = i16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.0001;
