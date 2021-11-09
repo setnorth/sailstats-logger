@@ -98,7 +98,8 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
     /// use nmea::nmea2000::yd;
     /// 
     /// let mut parser = nmea2000::Parser::<yd::Raw,String>::new();
-    /// if let Some(message) = parser.parse("123".to_string()).unwrap() {
+    /// if let Some(message) = 
+    ///     parser.parse("17:33:21.141 R 09F80115 A0 7D E6 18 C0 05 FB D5".to_string()).unwrap() {
     ///     //New message received
     /// }
     /// ```
