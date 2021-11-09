@@ -20,7 +20,7 @@ use std::fmt;
 use crate::nmea::types::{TData, TDest, TPgn, TPrio, TSrc, Timestamp};
 use crate::nmea::nmea2000;
 
-pub use std::str::FromStr;
+use std::str::FromStr;
 
 /// Holds a YDRaw message.
 /// 
@@ -48,10 +48,11 @@ impl nmea2000::Raw for Raw{
     fn data(&self) -> TData { self.data.to_vec() }
 }
 
-impl nmea2000::From<String> for Raw{
-    fn from(s: &String) -> Result<Self, Box<dyn std::error::Error>>{
+impl<T: ToString> nmea2000::From<T> for Raw{
+    fn from(s: &T) -> Result<Self, Box<dyn std::error::Error>>{
         // Split data fields
-        let mut fields = s.split_whitespace();
+        let t = s.to_string();
+        let mut fields = t.split_whitespace();
         
         //Parse time
         let t = fields.next().ok_or(YDRawParseError::IteratorError)?;

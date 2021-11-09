@@ -115,7 +115,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for WindMessage{
     }
 }
 
-/*message_type!(PositionRapidUpdateMessage, 129025, 8, false);
+message_type!(PositionRapidUpdateMessage, 129025, 8, false);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for PositionRapidUpdateMessage{
     fn update(&self, s: &mut State){
         s.timestamp = self.timestamp;
@@ -224,4 +224,4 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for RudderMessage{
             s.rudder_angle =  value * 360.0 / 2.0 / PI as f32;
         }
     }
-}*/
+}

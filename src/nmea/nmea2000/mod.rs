@@ -3,6 +3,7 @@ use crate::nmea::nmea2000::messages::*;
 use crate::state::State;
 
 use std::collections::HashMap;
+use std::marker;
 
 pub mod messages;
 pub mod yd;
@@ -19,22 +20,24 @@ pub trait Raw{
     fn data(&self) -> TData;
 }
 
-/// Read message information from a `Raw`-type.
-pub trait FromRaw<T>{
+/// Crate a `Raw` from some value of type `T`
+pub trait From<T>{
+    fn from(s: &T) -> Result<Self,Box<dyn std::error::Error>> where 
+        Self: Raw + Sized;
+}
+
+/// `Message` of some `Raw` type `T` that can update the State
+pub trait Message<T: Raw> : FromRaw<T>{
+    fn update(&self, s: &mut State);
+}
+
+/// Read information into a `Message` from some `Raw`-type `T`.
+pub trait FromRaw<T: Raw>{
     /// Returns true if the message is complete.
     fn is_complete(&self) -> bool;
     
     /// Parses message from a Raw type.
     fn from_raw(&mut self, raw: &T) -> Result<(),MessageErr>;
-}
-
-pub trait From<U>{
-    fn from(s: &U) -> Result<Self,Box<dyn std::error::Error>> where Self: Sized;
-}
-
-/// NMEA2000 message.
-pub trait Message<T: Raw> : FromRaw<T>{
-    fn update(&self, s: &mut State);
 }
 
 /// Errors relating to parsing NMEA2000 messages
@@ -45,33 +48,35 @@ pub enum MessageErr{
     UnexpectedLength
 }
 
-pub struct Parser2<T>{
-    messages: HashMap<(TSrc, TPgn), Box<dyn Message<T>>>
+/// Parser for that parses some `Raw` of type `T` from values of type `U`.
+pub struct Parser<T,U>{
+    messages: HashMap<(TSrc, TPgn), Box<dyn Message<T>>>,
+    phantom: marker::PhantomData<U>
 }
 
-impl<T: Raw+From<String>> Parser2<T>{
-    pub fn new() -> Self{ Parser2::<T>{messages: HashMap::new()} }
+impl<T: Raw + From<U>,U> Parser<T,U>{
+    pub fn new() -> Self{ Parser::<T,U>{messages: HashMap::new(), phantom: marker::PhantomData} }
 
-    pub fn parse_string(&mut self, src: &String) -> Result<Option<Box<dyn Message<T>>>,Box<dyn std::error::Error>>{
+    pub fn parse(&mut self, src: &U) -> Result<Option<Box<dyn Message<T>>>,Box<dyn std::error::Error>>{
         let raw = T::from(src)?;
-        Ok(self.parse(&raw))
+        Ok(self.parse_from_raw(&raw))
     }
 
-    pub fn parse(&mut self, raw: &T) -> Option<Box<dyn Message<T>>>{
+    pub fn parse_from_raw(&mut self, raw: &T) -> Option<Box<dyn Message<T>>>{
         let mut message : Box<dyn Message<T>>;
         if let Some(m) = self.messages.remove(&(raw.src(),raw.pgn())){
             message = m;
         }else{
             message = match raw.pgn(){
                 WindMessage::PGN                    => Box::new(WindMessage::new()),
-                /*PositionRapidUpdateMessage::PGN     => Box::new(PositionRapidUpdateMessage::new()),
+                PositionRapidUpdateMessage::PGN     => Box::new(PositionRapidUpdateMessage::new()),
                 GNSSPositionData::PGN               => Box::new(GNSSPositionData::new()),
                 VesselHeadingMessage::PGN           => Box::new(VesselHeadingMessage::new()),
                 CogSogRapidUpdateMessage::PGN       => Box::new(CogSogRapidUpdateMessage::new()),
                 SpeedMessage::PGN                   => Box::new(SpeedMessage::new()),
                 RateOfTurnMessage::PGN              => Box::new(RateOfTurnMessage::new()),
                 AttitudeMessage::PGN                => Box::new(AttitudeMessage::new()),
-                RudderMessage::PGN                  => Box::new(RudderMessage::new()),*/
+                RudderMessage::PGN                  => Box::new(RudderMessage::new()),
                 _ => return None
             }
         }
