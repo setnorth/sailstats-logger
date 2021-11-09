@@ -48,8 +48,8 @@ impl nmea2000::Raw for Raw{
     fn data(&self) -> TData { self.data.to_vec() }
 }
 
-impl<T: ToString> nmea2000::From<T> for Raw{
-    fn from(s: &T) -> Result<Self, Box<dyn std::error::Error>>{
+impl nmea2000::From<String> for Raw{
+    fn from(s: &String) -> Result<Self, Box<dyn std::error::Error>>{
         // Split data fields
         let t = s.to_string();
         let mut fields = t.split_whitespace();

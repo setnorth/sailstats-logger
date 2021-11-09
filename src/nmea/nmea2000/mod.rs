@@ -8,9 +8,9 @@ use std::marker;
 pub mod messages;
 pub mod yd;
 
-/// Raw format.
+/// NMEA2000 Raw format
 /// 
-/// Implements the standard a raw packet that is used in a message needs to implement.
+/// Defines standard methods for a NMEA2000 raw packet.
 pub trait Raw{
     fn timestamp(&self) -> Timestamp;
     fn src(&self) -> TSrc;
@@ -20,13 +20,14 @@ pub trait Raw{
     fn data(&self) -> TData;
 }
 
-/// Crate a `Raw` from some value of type `T`
+/// Read a `Raw` packet from some type `T`.
 pub trait From<T>{
+    /// Read a `Raw` packet from some type `T`.
     fn from(s: &T) -> Result<Self,Box<dyn std::error::Error>> where 
         Self: Raw + Sized;
 }
 
-/// `Message` of some `Raw` type `T` that can update the State
+/// `Message` of some `Raw`-type `T` that can update the State
 pub trait Message<T: Raw> : FromRaw<T>{
     fn update(&self, s: &mut State);
 }
