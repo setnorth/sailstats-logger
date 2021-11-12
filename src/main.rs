@@ -85,7 +85,7 @@ fn main() -> std::io::Result<()> {
     let mut time : Instant = Instant::now();
     for line in reader.lines(){
         if let Some(message) = parser.parse(&line?).unwrap(){
-            message.update(&mut state);
+            state.update(message);
             if time.elapsed().as_millis() >= opt.interval || reading_from_file {
                 writer.write_all(
                     format!("{}\n", state)

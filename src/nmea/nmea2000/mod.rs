@@ -1,6 +1,6 @@
 use crate::nmea::types::{TData, TDest, TPgn, TPrio, TSrc, Timestamp};
 use crate::nmea::nmea2000::messages::*;
-use crate::state::State;
+use crate::nmea::MessageValue;
 
 use std::collections::HashMap;
 use std::marker;
@@ -27,10 +27,13 @@ pub trait From<T>{
         Self: Raw + Sized;
 }
 
-/// Message as interface to the frontend for `State` updating
-pub trait Message<T: Raw> : FromRaw<T>{
+
+/// Message that can return a vector of [`MessageValue`]s
+pub trait Message<T: Raw>: FromRaw<T>{
     /// Updates a supplied state `s` with the message's information.
-    fn update(&self, s: &mut State);
+    //fn update(&self, s: &mut State);
+    /// Returns the message values
+    fn values(&self) -> Vec<MessageValue>;
 }
 
 /// Read information into a `Message` from some `Raw`-type `T`.
@@ -75,7 +78,7 @@ pub struct Parser<T,U>{
 }
 
 impl<T: Raw + From<U>,U> Parser<T,U>{
-    /// Returns a new [`Parser`]
+    /// Returns a new [`Parser`] 
     /// 
     /// # Examples
     /// 
@@ -85,11 +88,15 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
     /// 
     /// let mut parser = nmea2000::Parser::<yd::Raw,String>::new();
     /// ```
-    pub fn new() -> Self{ Parser::<T,U>{messages: HashMap::new(), _phantom: marker::PhantomData} }
+    pub fn new() -> Self{ 
+        Parser::<T,U>{
+            messages: HashMap::new(), 
+            _phantom: marker::PhantomData} 
+    }
 
     /// Parses first the source type `U` into a [`Raw`] and calls then [`Parser::parse_from_raw`] with the newly
     /// created [`Raw`] instance. Returns `Ok(Some(message))` if a complete message was received by this
-    /// source packet.
+    /// source.
     /// 
     /// # Examples
     /// 

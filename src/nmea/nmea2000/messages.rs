@@ -1,9 +1,11 @@
-//! nmea2000::Message types 
-use crate::state::State;
+//! nmea2000 Message types 
 use crate::nmea::types::{TData, TDest, TPgn, TPrio, TSrc, Timestamp};
 use crate::nmea::nmea2000;
 
-use std::f64::consts::PI;
+use crate::nmea::Float::*;
+use crate::nmea::MessageValue;
+use crate::nmea::MessageValue::*;
+
 use std::cmp;
 
 /// Creates a message type that implements the trait nmea2000::MessageData
@@ -48,7 +50,7 @@ macro_rules! message_type {
 
             fn from_raw(&mut self, raw: &T) -> Result<(),nmea2000::MessageErr>{
                 //Is this a fast message?
-                //(This part is most likely optimized in the compiler and only present
+                //(This part is optimized in the compiler and only present
                 // in messages which are consisting of several raw-packets)
                 if $type_name::FAST {
                     //If we are just starting this new fast package
@@ -108,23 +110,48 @@ macro_rules! message_type {
 
 message_type!(WindMessage, 130306, 8, false);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for WindMessage{
-    fn update(&self, s: &mut State){
-        s.timestamp = self.timestamp;
-        s.aws = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01 * 1.943_844_6; //in knots;
-        s.awa = u16::from_le_bytes([self.data[3],self.data[4]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
+    //fn update(&self, s: &mut State){
+        //s.timestamp = self.timestamp;
+        //s.aws = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01 * 1.943_844_6; //in knots;
+        //s.awa = u16::from_le_bytes([self.data[3],self.data[4]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
+    //}
+
+    fn values(&self) -> Vec<MessageValue>{
+        let aws = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01;
+        let awa = u16::from_le_bytes([self.data[3],self.data[4]]) as f32 * 0.0001;
+        vec![WindSpeed(F16(aws)), 
+             WindAngle(F16(awa))]
     }
 }
 
 message_type!(PositionRapidUpdateMessage, 129025, 8, false);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for PositionRapidUpdateMessage{
-    fn update(&self, s: &mut State){
-        s.timestamp = self.timestamp;
+    //fn update(&self, s: &mut State){
+        //s.timestamp = self.timestamp;
+        //let mut lat = i32::from_le_bytes([  
+            //self.data[0],
+            //self.data[1],
+            //self.data[2],
+            //self.data[3]]) as f32;
+        //lat *= 0.0000001;
+
+        //let mut long = i32::from_le_bytes([
+            //self.data[4],
+            //self.data[5],
+            //self.data[6],
+            //self.data[7]]) as f32;
+        //long *= 0.0000001;
+        //s.latitude= lat;
+        //s.longitude = long;
+    //}
+    ///Latitude & longitude 
+    fn values(&self) -> Vec<MessageValue>{
         let mut lat = i32::from_le_bytes([  
             self.data[0],
             self.data[1],
             self.data[2],
             self.data[3]]) as f32;
-        lat *= 0.0000001;
+        lat *= 0.0000001; 
 
         let mut long = i32::from_le_bytes([
             self.data[4],
@@ -132,15 +159,43 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for PositionRapidUpdateMessage{
             self.data[6],
             self.data[7]]) as f32;
         long *= 0.0000001;
-        s.latitude= lat;
-        s.longitude = long;
+
+        vec![Latitude(F32(lat)), 
+             Longitude(F32(long))]
     }
 }
 
 message_type!(GNSSPositionData, 129029, 43, true);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for GNSSPositionData{
-    fn update(&self, s : &mut State){
-        s.timestamp = self.timestamp;
+    //fn update(&self, s : &mut State){
+        //s.timestamp = self.timestamp;
+        ////Latitude
+        //let mut lat = i64::from_le_bytes([ 
+            //self.data[7],
+            //self.data[8],
+            //self.data[9],
+            //self.data[10],
+            //self.data[11],
+            //self.data[12],
+            //self.data[13],
+            //self.data[14]]) as f64;
+        //lat *= 0.0000000000000001;
+        ////Longitude
+        //let mut long = i64::from_le_bytes([ 
+            //self.data[15],
+            //self.data[16],
+            //self.data[17],
+            //self.data[18],
+            //self.data[19],
+            //self.data[20],
+            //self.data[21],
+            //self.data[22]]) as f64;
+        //long *= 0.0000000000000001;
+        //s.latitude = lat as f32;
+        //s.longitude = long as f32;
+    //}
+    ///Latitude and longitude in degrees
+    fn values(&self) -> Vec<MessageValue>{
         //Latitude
         let mut lat = i64::from_le_bytes([ 
             self.data[7],
@@ -163,65 +218,104 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for GNSSPositionData{
             self.data[21],
             self.data[22]]) as f64;
         long *= 0.0000000000000001;
-        s.latitude = lat as f32;
-        s.longitude = long as f32;
-    }
+        vec![Latitude(F64(lat)), 
+             Longitude(F64(long))]
+    }    
 }
 
 message_type!(VesselHeadingMessage, 127250, 8, false);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for VesselHeadingMessage{
-    fn update(&self, s: &mut State){
-        s.timestamp = self.timestamp;
-        s.hdg = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
+    //fn update(&self, s: &mut State){
+        //s.timestamp = self.timestamp;
+        //s.hdg = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
+    //}
+    ///Heading value in rad
+    fn values(&self) -> Vec<MessageValue>{
+        let hdg = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001;
+        vec![Heading(F16(hdg))]
     }
 }
 
 message_type!(CogSogRapidUpdateMessage, 129026, 8, false);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for CogSogRapidUpdateMessage{
-    fn update(&self, s: &mut State){
-        s.timestamp = self.timestamp;
-        s.cog = u16::from_le_bytes([self.data[2],self.data[3]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
-        s.sog = u16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.01 * 1.943_844_6; //in knots
+    //fn update(&self, s: &mut State){
+        //s.timestamp = self.timestamp;
+        //s.cog = u16::from_le_bytes([self.data[2],self.data[3]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
+        //s.sog = u16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.01 * 1.943_844_6; //in knots
+    //}
+    ///Course over ground in rad, speed over ground in m/s
+    fn values(&self) -> Vec<MessageValue>{
+        let cog = u16::from_le_bytes([self.data[2],self.data[3]]) as f32 * 0.0001;
+        let sog = u16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.01;
+        vec![CourseOverGround(F16(cog)), 
+             SpeedOverGround(F16(sog))]
     }
 }
 
 message_type!(SpeedMessage, 128259, 8, false);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for SpeedMessage{
-    fn update(&self, s: &mut State){
-        s.timestamp = self.timestamp;
-        s.stw = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01 * 1.943_844_6; //in knots
+    //fn update(&self, s: &mut State){
+        //s.timestamp = self.timestamp;
+        //s.stw = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01 * 1.943_844_6; //in knots
+    //}
+    ///Speed through water in m/s
+    fn values(&self) -> Vec<MessageValue>{
+        let stw = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01;
+        vec![SpeedThroughWater(F16(stw))]
     }
 }
 
 message_type!(RateOfTurnMessage, 127251, 5, false);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for RateOfTurnMessage{
-    fn update(&self, s: &mut State){
-        s.timestamp = self.timestamp;
-        s.rot = i32::from_le_bytes([self.data[1],
-                                    self.data[2],
-                                    self.data[3],
-                                    self.data[4]]) as f32 * 3.125e-08 * 360.0 / 2.0 / PI as f32;
+    //fn update(&self, s: &mut State){
+        //s.timestamp = self.timestamp;
+        //s.rot = i32::from_le_bytes([self.data[1],
+                                    //self.data[2],
+                                    //self.data[3],
+                                    //self.data[4]]) as f32 * 3.125e-08 * 360.0 / 2.0 / PI as f32;
+    //}
+    ///Rate of turn in radians/s
+    fn values(&self) -> Vec<MessageValue>{
+        let rot = i32::from_le_bytes([self.data[1],
+                                      self.data[2],
+                                      self.data[3],
+                                      self.data[4]]) as f32 * 3.125e-08;
+        vec![RateOfTurn(F32(rot))]
     }
 }
 
 message_type!(AttitudeMessage, 127257, 7, false);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for AttitudeMessage{
-    fn update(&self, s: &mut State){
-        s.timestamp = self.timestamp;
-        s.yaw = i16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
-        s.pitch = i16::from_le_bytes([self.data[3],self.data[4]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
-        s.roll = i16::from_le_bytes([self.data[5],self.data[6]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
+    //fn update(&self, s: &mut State){
+        //s.timestamp = self.timestamp;
+        //s.yaw = i16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
+        //s.pitch = i16::from_le_bytes([self.data[3],self.data[4]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
+        //s.roll = i16::from_le_bytes([self.data[5],self.data[6]]) as f32 * 0.0001 * 360.0 / 2.0 / PI as f32;
+    //}
+    ///Yaw, pitch & roll in radians
+    fn values(&self) -> Vec<MessageValue>{
+        let yaw = i16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001;
+        let pitch = i16::from_le_bytes([self.data[3],self.data[4]]) as f32 * 0.0001;
+        let roll = i16::from_le_bytes([self.data[5],self.data[6]]) as f32 * 0.0001;
+        vec![Yaw(F16(yaw)),
+             Pitch(F16(pitch)),
+             Roll(F16(roll))]
     }
 }
 
 message_type!(RudderMessage, 127245, 8, false);
 impl<T: nmea2000::Raw> nmea2000::Message<T> for RudderMessage{
-    fn update(&self, s: &mut State){
-        s.timestamp = self.timestamp;
-        let value = i16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.0001;
-        //There were some invalid rudder values, so here a sanity check
-        if (value <= PI as f32) && (value >= -PI as f32){
-            s.rudder_angle =  value * 360.0 / 2.0 / PI as f32;
-        }
+    //fn update(&self, s: &mut State){
+        //s.timestamp = self.timestamp;
+        //let value = i16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.0001;
+        ////There were some invalid rudder values, so here a sanity check
+        //if (value <= PI as f32) && (value >= -PI as f32){
+            //s.rudder_angle =  value * 360.0 / 2.0 / PI as f32;
+        //}
+    //}
+    ///Rudder angle in radians
+    fn values(&self) -> Vec<MessageValue>{
+        let ra = i16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.0001;
+        vec![RudderAngle(F16(ra))]
     }
 }
