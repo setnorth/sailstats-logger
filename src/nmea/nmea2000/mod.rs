@@ -30,8 +30,6 @@ pub trait From<T>{
 
 /// Message that can return a vector of [`MessageValue`]s
 pub trait Message<T: Raw>: FromRaw<T>{
-    /// Updates a supplied state `s` with the message's information.
-    //fn update(&self, s: &mut State);
     /// Returns the message values
     fn values(&self) -> Vec<MessageValue>;
 }

@@ -40,11 +40,17 @@ pub struct Raw{
 }
 
 impl nmea2000::Raw for Raw{
+    #[inline(always)]
     fn timestamp(&self) -> Timestamp { self.timestamp }
+    #[inline(always)]
     fn src(&self) -> TSrc { self.src }
+    #[inline(always)]
     fn dest(&self) -> TDest { self.dest }
+    #[inline(always)]
     fn prio(&self) -> TPrio { self.prio }
+    #[inline(always)]
     fn pgn(&self) -> TPgn { self.pgn }
+    #[inline(always)]
     fn data(&self) -> TData { self.data.to_vec() }
 }
 
