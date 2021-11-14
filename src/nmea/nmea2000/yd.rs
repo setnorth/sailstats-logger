@@ -20,6 +20,7 @@ use std::fmt;
 use crate::nmea::types::{TData, TDest, TPgn, TPrio, TSrc, Timestamp};
 use crate::nmea::nmea2000;
 
+use std::cmp;
 use std::str::FromStr;
 
 /// Holds a YDRaw message.
@@ -119,6 +120,66 @@ impl nmea2000::From<String> for Raw{
             src,
             dest
         })
+    }
+}
+
+impl nmea2000::MessageWriter for Raw{
+    fn write(&self, m: &mut Box<dyn nmea2000::Message>) -> Result<(),nmea2000::MessageErr>{
+        //Is this a fast message?
+        //(This part is optimized in the compiler and only present
+        // in messages which are consisting of several raw-packets)
+        if m.is_fast(){
+            //If we are just starting this new fast package
+            if (m.next_packet() == 0) && (self.data[0] & 0x1F == 0){
+                //Check if this packet has the same length as we expect to see
+                if m.bytes() != self.data[1] as usize {
+                    return Err(nmea2000::MessageErr::UnexpectedLength);
+                }
+                //Set values and the first 6 bytes for this package
+                *m.timestamp_mut() = self.timestamp;
+                *m.src_mut() = self.src;
+                *m.dest_mut() = self.dest;
+                *m.prio_mut() = self.prio;
+                *m.counter_mask_mut() = self.data[0];
+                *m.next_packet_mut() += 1;
+                *m.remaining_bytes_mut() = m.bytes() - 6;
+                m.data_mut().append(&mut self.data[2..8_usize].to_vec());
+            } else {
+                //This packet is already begun...
+                //If the packet is the next in series
+                if m.next_packet() == (m.counter_mask() ^ self.data[0]){
+                    let l = cmp::min(m.remaining_bytes()+1,8);
+                    m.data_mut().append(&mut self.data[1..l as usize].to_vec());
+                    *m.remaining_bytes_mut() -= cmp::min(m.remaining_bytes(),7);
+                    *m.next_packet_mut() += 1;
+                } else {
+                    //It seems that the previous sequence was not finished. Try to start a new sequence.
+                    //Check that only bits in sequence identifier (raw.data[0] & 0b00011111) and sequence
+                    //size with what we expect.
+                    if (self.data[0] & 0x1F == 0) && ((self.data[1] as usize ) == m.bytes() as usize){
+                        *m.timestamp_mut() = self.timestamp;
+                        *m.src_mut() = self.src;
+                        *m.dest_mut() = self.dest;
+                        *m.prio_mut() = self.prio;
+                        *m.counter_mask_mut() = self.data[0];
+                        *m.next_packet_mut() += 1;
+                        *m.remaining_bytes_mut() = m.bytes() - cmp::min(m.bytes(),6);
+                        m.data_mut().clear();
+                        m.data_mut().append(&mut self.data[2..8_usize].to_vec());
+                    } else {
+                        return Err(nmea2000::MessageErr::OutOfSequence);
+                    }
+                }
+            }
+        } else {
+            //Just a normal packet
+            *m.timestamp_mut() = self.timestamp;
+            *m.src_mut() = self.src;
+            *m.dest_mut() = self.dest;
+            *m.prio_mut() = self.prio;
+            m.data_mut().append(&mut self.data.to_vec());
+        }
+        Ok(())
     }
 }
 

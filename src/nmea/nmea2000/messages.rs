@@ -6,8 +6,6 @@ use crate::nmea::Float::*;
 use crate::nmea::MessageValue;
 use crate::nmea::MessageValue::*;
 
-use std::cmp;
-
 /// Creates a message type that implements the trait nmea2000::MessageData
 macro_rules! message_type {
     ($type_name: ident, $pgn: expr, $bytes: expr, $fast: expr) => {
@@ -40,76 +38,40 @@ macro_rules! message_type {
             pub fn new() -> Self{ $type_name{..Default::default()} }
         }
 
-        impl<T: nmea2000::Raw> nmea2000::FromRaw<T> for $type_name{
-            fn is_complete(&self) -> bool {
+        impl nmea2000::MessageData for $type_name{
+            fn timestamp(&self) -> Timestamp {self.timestamp}
+            fn timestamp_mut(&mut self) -> &mut Timestamp {&mut self.timestamp}
+            fn src(&self) -> TSrc {self.src}
+            fn src_mut(&mut self) -> &mut TSrc {&mut self.src}
+            fn dest(&self) -> TDest {self.dest}
+            fn dest_mut(&mut self) -> &mut TDest {&mut self.dest}
+            fn prio(&self) -> TPrio {self.prio}
+            fn prio_mut(&mut self) -> &mut TPrio {&mut self.prio}
+            fn data(&self) -> &TData {&self.data}
+            fn data_mut(&mut self) -> &mut TData {&mut self.data}
+
+            fn pgn(&self) -> TPgn {$type_name::PGN}
+            fn bytes(&self) -> usize {$type_name::BYTES}
+            fn is_fast(&self) -> bool {$type_name::FAST}
+            fn is_complete(&self) -> bool{
                 match self.remaining_bytes{
                     0 => true,
                     _ => false
                 }
             }
 
-            fn from_raw(&mut self, raw: &T) -> Result<(),nmea2000::MessageErr>{
-                //Is this a fast message?
-                //(This part is optimized in the compiler and only present
-                // in messages which are consisting of several raw-packets)
-                if $type_name::FAST {
-                    //If we are just starting this new fast package
-                    if (self.next_packet == 0) && (raw.data()[0] & 0x1F == 0){
-                        //Check if this packet has the same length as we expect to see
-                        if $type_name::BYTES != raw.data()[1] as usize {
-                            return Err(nmea2000::MessageErr::UnexpectedLength);
-                        }
-                        //Set values and the first 6 bytes for this package
-                        self.timestamp = raw.timestamp();
-                        self.src = raw.src();
-                        self.dest = raw.dest();
-                        self.prio = raw.prio();
-                        self.counter_mask = raw.data()[0];
-                        self.next_packet += 1;
-                        self.remaining_bytes = $type_name::BYTES - cmp::min($type_name::BYTES,6);
-                        self.data.append(&mut raw.data()[2..8_usize].to_vec());
-                    } else {
-                        //This packet is already begun...
-                        //If the packet is the next in series
-                        if self.next_packet == (self.counter_mask ^ raw.data()[0]){
-                            self.data.append(&mut raw.data()[1..cmp::min(self.remaining_bytes+1,8) as usize].to_vec());
-                            self.remaining_bytes -= cmp::min(self.remaining_bytes,7);
-                            self.next_packet += 1;
-                        } else {
-                            //It seems that the previous sequence was not finished. Try to start a new sequence.
-                            //Check that only bits in sequence identifier (raw.data[0] & 0b00011111) and sequence
-                            //size with what we expect.
-                            if ((raw.data()[0] & 0x1F == 0) && ((raw.data()[1] as usize ) == $type_name::BYTES as usize)){
-                                self.timestamp = raw.timestamp();
-                                self.src = raw.src();
-                                self.dest = raw.dest();
-                                self.prio = raw.prio();
-                                self.counter_mask = raw.data()[0];
-                                self.next_packet += 1;
-                                self.remaining_bytes = $type_name::BYTES - cmp::min($type_name::BYTES,6);
-                                self.data.clear();
-                                self.data.append(&mut raw.data()[2..8_usize].to_vec());
-                            } else {
-                                return Err(nmea2000::MessageErr::OutOfSequence);
-                            }
-                        }
-                    }
-                } else {
-                    //Just a normal packet
-                    self.timestamp = raw.timestamp();
-                    self.src = raw.src();
-                    self.dest = raw.dest();
-                    self.prio = raw.prio();
-                    self.data.append(&mut raw.data().to_vec());
-                }
-                Ok(())
-            }
+            fn counter_mask(&self) -> u8 {self.counter_mask}
+            fn counter_mask_mut(&mut self) -> &mut u8 {&mut self.counter_mask}
+            fn next_packet(&self) -> u8 {self.next_packet}
+            fn next_packet_mut(&mut self) -> &mut u8 {&mut self.next_packet}
+            fn remaining_bytes(&self) -> usize {self.remaining_bytes}
+            fn remaining_bytes_mut(&mut self) -> &mut usize {&mut self.remaining_bytes}
         }
     }
 }
 
 message_type!(WindMessage, 130306, 8, false);
-impl<T: nmea2000::Raw> nmea2000::Message<T> for WindMessage{
+impl nmea2000::Message for WindMessage{
     fn values(&self) -> Vec<MessageValue>{
         let aws = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01;
         let awa = u16::from_le_bytes([self.data[3],self.data[4]]) as f32 * 0.0001;
@@ -119,7 +81,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for WindMessage{
 }
 
 message_type!(PositionRapidUpdateMessage, 129025, 8, false);
-impl<T: nmea2000::Raw> nmea2000::Message<T> for PositionRapidUpdateMessage{
+impl nmea2000::Message for PositionRapidUpdateMessage{
     ///Latitude & longitude 
     fn values(&self) -> Vec<MessageValue>{
         let mut lat = i32::from_le_bytes([  
@@ -142,7 +104,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for PositionRapidUpdateMessage{
 }
 
 message_type!(GNSSPositionData, 129029, 43, true);
-impl<T: nmea2000::Raw> nmea2000::Message<T> for GNSSPositionData{
+impl nmea2000::Message for GNSSPositionData{
     ///Latitude and longitude in degrees
     fn values(&self) -> Vec<MessageValue>{
         //Latitude
@@ -173,7 +135,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for GNSSPositionData{
 }
 
 message_type!(VesselHeadingMessage, 127250, 8, false);
-impl<T: nmea2000::Raw> nmea2000::Message<T> for VesselHeadingMessage{
+impl nmea2000::Message for VesselHeadingMessage{
     ///Heading value in rad
     fn values(&self) -> Vec<MessageValue>{
         let hdg = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001;
@@ -182,7 +144,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for VesselHeadingMessage{
 }
 
 message_type!(CogSogRapidUpdateMessage, 129026, 8, false);
-impl<T: nmea2000::Raw> nmea2000::Message<T> for CogSogRapidUpdateMessage{
+impl nmea2000::Message for CogSogRapidUpdateMessage{
     ///Course over ground in rad, speed over ground in m/s
     fn values(&self) -> Vec<MessageValue>{
         let cog = u16::from_le_bytes([self.data[2],self.data[3]]) as f32 * 0.0001;
@@ -193,7 +155,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for CogSogRapidUpdateMessage{
 }
 
 message_type!(SpeedMessage, 128259, 8, false);
-impl<T: nmea2000::Raw> nmea2000::Message<T> for SpeedMessage{
+impl nmea2000::Message for SpeedMessage{
     ///Speed through water in m/s
     fn values(&self) -> Vec<MessageValue>{
         let stw = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01;
@@ -202,7 +164,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for SpeedMessage{
 }
 
 message_type!(RateOfTurnMessage, 127251, 5, false);
-impl<T: nmea2000::Raw> nmea2000::Message<T> for RateOfTurnMessage{
+impl nmea2000::Message for RateOfTurnMessage{
     ///Rate of turn in radians/s
     fn values(&self) -> Vec<MessageValue>{
         let rot = i32::from_le_bytes([self.data[1],
@@ -214,7 +176,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for RateOfTurnMessage{
 }
 
 message_type!(AttitudeMessage, 127257, 7, false);
-impl<T: nmea2000::Raw> nmea2000::Message<T> for AttitudeMessage{
+impl nmea2000::Message for AttitudeMessage{
     ///Yaw, pitch & roll in radians
     fn values(&self) -> Vec<MessageValue>{
         let yaw = i16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001;
@@ -227,7 +189,7 @@ impl<T: nmea2000::Raw> nmea2000::Message<T> for AttitudeMessage{
 }
 
 message_type!(RudderMessage, 127245, 8, false);
-impl<T: nmea2000::Raw> nmea2000::Message<T> for RudderMessage{
+impl nmea2000::Message for RudderMessage{
     ///Rudder angle in radians
     fn values(&self) -> Vec<MessageValue>{
         let ra = i16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.0001;

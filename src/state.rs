@@ -60,7 +60,7 @@ impl State {
         String::from("time;awa;aws;latitude;longitude;hdg;cog;sog;stw;rot;pitch;yaw;roll;rudder_angle")
     }
     /// Update the state with a nmea message value
-    pub fn update<T: nmea2000::Raw>(&mut self, message: Box<dyn nmea2000::Message<T>>){
+    pub fn update(&mut self, message: Box<dyn nmea2000::Message>){
         for entry in message.values(){
             match entry{
                 MessageValue::WindSpeed(Float::F16(aws)) => self.aws = to_knots(aws),

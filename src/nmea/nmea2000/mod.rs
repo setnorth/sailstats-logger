@@ -27,20 +27,41 @@ pub trait From<T>{
         Self: Raw + Sized;
 }
 
+/// Write a message
+pub trait MessageWriter{
+    fn write(&self, message: &mut Box<dyn Message>) -> Result<(),MessageErr>;
+}
 
-/// Message that can return a vector of [`MessageValue`]s
-pub trait Message<T: Raw>: FromRaw<T>{
+/// Return [`MessageValue`]s. Must implement [`MessageData`].
+pub trait Message: MessageData{
     /// Returns the message values
     fn values(&self) -> Vec<MessageValue>;
 }
 
-/// Read information into a `Message` from some `Raw`-type `T`.
-pub trait FromRaw<T: Raw>{
-    /// Returns true if the message is complete.
+/// Functions to get access to [`Message`] fields
+pub trait MessageData{
+    fn timestamp(&self) -> Timestamp;
+    fn timestamp_mut(&mut self) -> &mut Timestamp;
+    fn src(&self) -> TSrc;
+    fn src_mut(&mut self) -> &mut TSrc;
+    fn dest(&self) -> TDest;
+    fn dest_mut(&mut self) -> &mut TDest;
+    fn prio(&self) -> TPrio;
+    fn prio_mut(&mut self) -> &mut TPrio;
+    fn data(&self) -> &TData;
+    fn data_mut(&mut self) -> &mut TData;
+
+    fn pgn(&self) -> TPgn;
+    fn bytes(&self) -> usize;
+    fn is_fast(&self) -> bool;
     fn is_complete(&self) -> bool;
-    
-    /// Parses message from a Raw type.
-    fn from_raw(&mut self, raw: &T) -> Result<(),MessageErr>;
+
+    fn counter_mask(&self) -> u8;
+    fn counter_mask_mut(&mut self) -> &mut u8;
+    fn next_packet(&self) -> u8;
+    fn next_packet_mut(&mut self) -> &mut u8;
+    fn remaining_bytes(&self) -> usize;
+    fn remaining_bytes_mut(&mut self) -> &mut usize;
 }
 
 /// Errors relating to parsing NMEA2000 messages
@@ -69,13 +90,14 @@ pub enum MessageErr{
 /// ```
 pub struct Parser<T,U>{
     /// Messages are stored here if they are not completely received.
-    messages: HashMap<(TSrc, TPgn), Box<dyn Message<T>>>,
-    /// Unused variable that is only required in order to have a type `U` for the [`Raw`]'s
-    /// implementation of the [`From`] trait.
-    _phantom: marker::PhantomData<U>
+    messages: HashMap<(TSrc, TPgn), Box<dyn Message>>,
+    // Unused variable that is only required in order to have a type `U` for the [`Raw`]'s
+    // implementation of the [`From`] trait.
+    _phantom: marker::PhantomData<U>,
+    _phantom2: marker::PhantomData<T>
 }
 
-impl<T: Raw + From<U>,U> Parser<T,U>{
+impl<T: MessageWriter + Raw + From<U>,U> Parser<T,U>{
     /// Returns a new [`Parser`] 
     /// 
     /// # Examples
@@ -87,9 +109,7 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
     /// let mut parser = nmea2000::Parser::<yd::Raw,String>::new();
     /// ```
     pub fn new() -> Self{ 
-        Parser::<T,U>{
-            messages: HashMap::new(), 
-            _phantom: marker::PhantomData} 
+        Parser::<T,U>{messages: HashMap::new(), _phantom: marker::PhantomData, _phantom2: marker::PhantomData} 
     }
 
     /// Parses first the source type `U` into a [`Raw`] and calls then [`Parser::parse_from_raw`] with the newly
@@ -108,13 +128,13 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
     ///     //New message received
     /// }
     /// ```
-    pub fn parse(&mut self, src: &U) -> Result<Option<Box<dyn Message<T>>>,Box<dyn std::error::Error>>{
+    pub fn parse(&mut self, src: &U) -> Result<Option<Box<dyn Message>>,Box<dyn std::error::Error>>{
         let raw = T::from(src)?;
         Ok(self.parse_from_raw(&raw))
     }
 
-    pub fn parse_from_raw(&mut self, raw: &T) -> Option<Box<dyn Message<T>>>{
-        let mut message : Box<dyn Message<T>>;
+    pub fn parse_from_raw(&mut self, raw: &T) -> Option<Box<dyn Message>>{
+        let mut message : Box<dyn Message>;
         if let Some(m) = self.messages.remove(&(raw.src(),raw.pgn())){
             message = m;
         }else{
@@ -132,7 +152,7 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
             }
         }
 
-        if message.from_raw(raw).is_err(){
+        if raw.write(&mut message).is_err(){
             return None
         }
 
