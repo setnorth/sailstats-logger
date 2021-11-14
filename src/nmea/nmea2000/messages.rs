@@ -39,20 +39,33 @@ macro_rules! message_type {
         }
 
         impl nmea2000::MessageData for $type_name{
+            #[inline(always)]
             fn timestamp(&self) -> Timestamp {self.timestamp}
+            #[inline(always)]
             fn timestamp_mut(&mut self) -> &mut Timestamp {&mut self.timestamp}
+            #[inline(always)]
             fn src(&self) -> TSrc {self.src}
+            #[inline(always)]
             fn src_mut(&mut self) -> &mut TSrc {&mut self.src}
+            #[inline(always)]
             fn dest(&self) -> TDest {self.dest}
+            #[inline(always)]
             fn dest_mut(&mut self) -> &mut TDest {&mut self.dest}
+            #[inline(always)]
             fn prio(&self) -> TPrio {self.prio}
+            #[inline(always)]
             fn prio_mut(&mut self) -> &mut TPrio {&mut self.prio}
+            #[inline(always)]
             fn data(&self) -> &TData {&self.data}
+            #[inline(always)]
             fn data_mut(&mut self) -> &mut TData {&mut self.data}
 
             fn pgn(&self) -> TPgn {$type_name::PGN}
+            #[inline(always)]
             fn bytes(&self) -> usize {$type_name::BYTES}
+            #[inline(always)]
             fn is_fast(&self) -> bool {$type_name::FAST}
+            #[inline(always)]
             fn is_complete(&self) -> bool{
                 match self.remaining_bytes{
                     0 => true,
@@ -61,10 +74,15 @@ macro_rules! message_type {
             }
 
             fn counter_mask(&self) -> u8 {self.counter_mask}
+            #[inline(always)]
             fn counter_mask_mut(&mut self) -> &mut u8 {&mut self.counter_mask}
+            #[inline(always)]
             fn next_packet(&self) -> u8 {self.next_packet}
+            #[inline(always)]
             fn next_packet_mut(&mut self) -> &mut u8 {&mut self.next_packet}
+            #[inline(always)]
             fn remaining_bytes(&self) -> usize {self.remaining_bytes}
+            #[inline(always)]
             fn remaining_bytes_mut(&mut self) -> &mut usize {&mut self.remaining_bytes}
         }
     }
