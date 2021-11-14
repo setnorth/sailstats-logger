@@ -10,9 +10,10 @@ use crate::nmea::nmea2000;
 use std::fs::File;
 use std::io::{BufReader, BufRead, BufWriter, Write};
 use std::time::{Instant};
-
 use std::path::PathBuf;
+
 use structopt::StructOpt;
+use anyhow::{Context, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "SailStats Logger v0.1.0a", 
@@ -38,7 +39,7 @@ struct Opt{
 ///****************************************************************************
 /// Main
 ///****************************************************************************
-fn main() -> std::io::Result<()> {
+fn main() -> Result<()> {
     let opt = Opt::from_args();
 
     let in_stream: Box<dyn std::io::Read>;
@@ -48,21 +49,28 @@ fn main() -> std::io::Result<()> {
     
     //Input args
     if let Some(f) = opt.input_file{
-        in_stream = Box::new(File::open(f.to_str().unwrap())?);
+        in_stream = Box::new(File::open(
+                                    f.to_str().unwrap())
+                                     .with_context(|| format!("unable to open {}",f.to_str().unwrap()))?
+                                    );
         reading_from_file = true;
     } else{
-        in_stream = Box::new(UdpStream::open(
-            format!("0.0.0.0:{}",
-                match opt.port {
+        let port = match opt.port {
                     Some(port) => port.to_string(),
                     None => "1457".to_string(),
-                }))?);
+                };
+        let address = format!("0.0.0.0:{}",port);
+        in_stream = Box::new(
+                        UdpStream::open(address.clone()).with_context(|| format!("could not open UDP listener on {}",address))?
+                    );
         reading_from_file = false;
     }
 
     //Output args
     if let Some(f) = opt.output_file{
-        out_stream = Box::new(File::create(f.to_str().unwrap())?);
+        out_stream = Box::new(
+            File::create(f.to_str().unwrap()).with_context(|| format!("could not create file {}", f.to_str().unwrap()))?
+        );
         writing_to_file = true;
     }else{
         out_stream = Box::new(std::io::stdout());
@@ -76,21 +84,21 @@ fn main() -> std::io::Result<()> {
     let mut state = State::new();
 
     //Write the headline
-    writer.write_all(format!("{}\n",State::headline()).as_bytes())?;
+    writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
     
     //If we are writing to stdout flush immediately
-    if !writing_to_file{ writer.flush()?; } 
+    if !writing_to_file{ writer.flush().context("unable to flush output")?; } 
 
     //Start timer for the print out interval
     let mut time : Instant = Instant::now();
     for line in reader.lines(){
-        if let Some(message) = parser.parse(&line?).unwrap(){
+        if let Some(message) = parser.parse(&line.context("error processing line")?).context("error parsing line")?{
             state.update(message);
             if time.elapsed().as_millis() >= opt.interval || reading_from_file {
                 writer.write_all(
                     format!("{}\n", state)
-                    .as_bytes())?;
-                if !writing_to_file{ writer.flush()?; }
+                    .as_bytes()).context("error writing output")?;
+                if !writing_to_file{ writer.flush().context("unable to flush output")?; }
                 time = Instant::now();
             }
         }

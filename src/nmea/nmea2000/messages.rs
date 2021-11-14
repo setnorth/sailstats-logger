@@ -76,7 +76,8 @@ impl nmea2000::Message for WindMessage{
         let aws = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01;
         let awa = u16::from_le_bytes([self.data[3],self.data[4]]) as f32 * 0.0001;
         vec![WindSpeed(F16(aws)), 
-             WindAngle(F16(awa))]
+             WindAngle(F16(awa)),
+             Timestamp(self.timestamp)]
     }
 }
 
@@ -99,7 +100,8 @@ impl nmea2000::Message for PositionRapidUpdateMessage{
         long *= 0.0000001;
 
         vec![Latitude(F32(lat)), 
-             Longitude(F32(long))]
+             Longitude(F32(long)),
+             Timestamp(self.timestamp)]
     }
 }
 
@@ -130,7 +132,8 @@ impl nmea2000::Message for GNSSPositionData{
             self.data[22]]) as f64;
         long *= 0.0000000000000001;
         vec![Latitude(F64(lat)), 
-             Longitude(F64(long))]
+             Longitude(F64(long)),
+             Timestamp(self.timestamp)]
     }    
 }
 
@@ -139,7 +142,8 @@ impl nmea2000::Message for VesselHeadingMessage{
     ///Heading value in rad
     fn values(&self) -> Vec<MessageValue>{
         let hdg = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.0001;
-        vec![Heading(F16(hdg))]
+        vec![Heading(F16(hdg)),
+            Timestamp(self.timestamp)]
     }
 }
 
@@ -150,7 +154,8 @@ impl nmea2000::Message for CogSogRapidUpdateMessage{
         let cog = u16::from_le_bytes([self.data[2],self.data[3]]) as f32 * 0.0001;
         let sog = u16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.01;
         vec![CourseOverGround(F16(cog)), 
-             SpeedOverGround(F16(sog))]
+             SpeedOverGround(F16(sog)),
+             Timestamp(self.timestamp)]
     }
 }
 
@@ -159,7 +164,8 @@ impl nmea2000::Message for SpeedMessage{
     ///Speed through water in m/s
     fn values(&self) -> Vec<MessageValue>{
         let stw = u16::from_le_bytes([self.data[1],self.data[2]]) as f32 * 0.01;
-        vec![SpeedThroughWater(F16(stw))]
+        vec![SpeedThroughWater(F16(stw)),
+             Timestamp(self.timestamp)]
     }
 }
 
@@ -171,7 +177,8 @@ impl nmea2000::Message for RateOfTurnMessage{
                                       self.data[2],
                                       self.data[3],
                                       self.data[4]]) as f32 * 3.125e-08;
-        vec![RateOfTurn(F32(rot))]
+        vec![RateOfTurn(F32(rot)),
+             Timestamp(self.timestamp)]
     }
 }
 
@@ -184,7 +191,8 @@ impl nmea2000::Message for AttitudeMessage{
         let roll = i16::from_le_bytes([self.data[5],self.data[6]]) as f32 * 0.0001;
         vec![Yaw(F16(yaw)),
              Pitch(F16(pitch)),
-             Roll(F16(roll))]
+             Roll(F16(roll)),
+             Timestamp(self.timestamp)]
     }
 }
 
@@ -193,6 +201,7 @@ impl nmea2000::Message for RudderMessage{
     ///Rudder angle in radians
     fn values(&self) -> Vec<MessageValue>{
         let ra = i16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.0001;
-        vec![RudderAngle(F16(ra))]
+        vec![RudderAngle(F16(ra)),
+             Timestamp(self.timestamp)]
     }
 }

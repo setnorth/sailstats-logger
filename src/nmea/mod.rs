@@ -22,5 +22,6 @@ pub enum MessageValue{
     Yaw(Float),
     Pitch(Float),
     Roll(Float),
-    RudderAngle(Float)
+    RudderAngle(Float),
+    Timestamp(types::Timestamp)
 }

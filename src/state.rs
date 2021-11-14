@@ -63,6 +63,7 @@ impl State {
     pub fn update(&mut self, message: Box<dyn nmea2000::Message>){
         for entry in message.values(){
             match entry{
+                MessageValue::Timestamp(t) => self.timestamp = t,
                 MessageValue::WindSpeed(Float::F16(aws)) => self.aws = to_knots(aws),
                 MessageValue::WindAngle(Float::F16(awa)) => self.awa = to_degrees(awa),
                 MessageValue::Latitude(Float::F32(lat)) => self.latitude = lat,

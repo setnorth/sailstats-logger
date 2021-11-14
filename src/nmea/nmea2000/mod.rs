@@ -5,6 +5,8 @@ use crate::nmea::MessageValue;
 use std::collections::HashMap;
 use std::marker;
 
+use thiserror::Error;
+
 pub mod messages;
 pub mod yd;
 
@@ -18,13 +20,13 @@ pub trait Raw{
     fn prio(&self) -> TPrio;
     fn pgn(&self) -> TPgn;
     fn data(&self) -> TData;
-    fn write(&self, message: &mut Box<dyn Message>) -> Result<(),MessageErr>;
+    fn write(&self, message: &mut Box<dyn Message>) -> Result<(),NMEA2000Error>;
 }
 
 /// Read a `Raw` packet from some type `T`
 pub trait From<T>{
     /// Reads a `Raw` packet from some type `T`.
-    fn from(s: &T) -> Result<Self,Box<dyn std::error::Error>> where 
+    fn from(s: &T) -> Result<Self,NMEA2000Error> where 
         Self: Raw + Sized;
 }
 
@@ -58,14 +60,6 @@ pub trait MessageData{
     fn next_packet_mut(&mut self) -> &mut u8;
     fn remaining_bytes(&self) -> usize;
     fn remaining_bytes_mut(&mut self) -> &mut usize;
-}
-
-/// Errors relating to parsing NMEA2000 messages
-pub enum MessageErr{
-    /// The supplied raw packet is out of sequence
-    OutOfSequence,
-    /// The supplied raw packet is of unexpected length
-    UnexpectedLength
 }
 
 /// Parser for NMEA2000 messages
@@ -126,7 +120,7 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
     ///     //New message received
     /// }
     /// ```
-    pub fn parse(&mut self, src: &U) -> Result<Option<Box<dyn Message>>,Box<dyn std::error::Error>>{
+    pub fn parse(&mut self, src: &U) -> Result<Option<Box<dyn Message>>,NMEA2000Error>{
         let raw = T::from(src)?;
         Ok(self.parse_from_raw(&raw))
     }
@@ -150,6 +144,10 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
             }
         }
 
+        // There is no error treatment here. It would be possible to use it with an Option, but for
+        // debug purposes it is easier here to keep it like this and modify it in case new raw-writers
+        // are implemented. During normal execution frequent PacketOutOfSequence errors occur, but are
+        // ignored at this point. They seem to be normal for NMEA2000 (at least in my system)
         if raw.write(&mut message).is_err(){
             return None
         }
@@ -164,3 +162,16 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
     }
 }
 
+#[derive(Error,Debug)]
+pub enum NMEA2000Error{
+    #[error("unknown raw format")]
+    RawFormatError,
+    #[error(transparent)]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error(transparent)]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("packet out of sequence")]
+    PacketOutOfSequence,
+    #[error("unexpected length of packet")]
+    UnexpectedPacketLength,
+}

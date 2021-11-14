@@ -19,6 +19,7 @@ use std::fmt;
 
 use crate::nmea::types::{TData, TDest, TPgn, TPrio, TSrc, Timestamp};
 use crate::nmea::nmea2000;
+use crate::nmea::nmea2000::NMEA2000Error;
 
 use std::cmp;
 use std::str::FromStr;
@@ -54,7 +55,7 @@ impl nmea2000::Raw for Raw{
     #[inline(always)]
     fn data(&self) -> TData { self.data.to_vec() }
 
-    fn write(&self, m: &mut Box<dyn nmea2000::Message>) -> Result<(),nmea2000::MessageErr>{
+    fn write(&self, m: &mut Box<dyn nmea2000::Message>) -> Result<(),NMEA2000Error>{
         //Is this a fast message?
         //(This part is optimized in the compiler and only present
         // in messages which are consisting of several raw-packets)
@@ -63,7 +64,7 @@ impl nmea2000::Raw for Raw{
             if (m.next_packet() == 0) && (self.data[0] & 0x1F == 0){
                 //Check if this packet has the same length as we expect to see
                 if m.bytes() != self.data[1] as usize {
-                    return Err(nmea2000::MessageErr::UnexpectedLength);
+                    return Err(NMEA2000Error::UnexpectedPacketLength);
                 }
                 //Set values and the first 6 bytes for this package
                 *m.timestamp_mut() = self.timestamp;
@@ -97,7 +98,7 @@ impl nmea2000::Raw for Raw{
                         m.data_mut().clear();
                         m.data_mut().append(&mut self.data[2..8_usize].to_vec());
                     } else {
-                        return Err(nmea2000::MessageErr::OutOfSequence);
+                        return Err(NMEA2000Error::PacketOutOfSequence);
                     }
                 }
             }
@@ -114,13 +115,12 @@ impl nmea2000::Raw for Raw{
 }
 
 impl nmea2000::From<String> for Raw{
-    fn from(s: &String) -> Result<Self, Box<dyn std::error::Error>>{
+    fn from(s: &String) -> Result<Self, NMEA2000Error>{
         // Split data fields
-        let t = s.to_string();
-        let mut fields = t.split_whitespace();
+        let mut fields = s.split_whitespace();
         
         //Parse time
-        let t = fields.next().ok_or(YDRawParseError::IteratorError)?;
+        let t = fields.next().ok_or(NMEA2000Error::RawFormatError)?;
         let timestamp = (
             u8::from_str(&t[0..2])?,
             u8::from_str(&t[3..5])?,
@@ -128,15 +128,15 @@ impl nmea2000::From<String> for Raw{
         );
 
         //Get direction
-        let d = fields.next().ok_or(YDRawParseError::IteratorError)?;
+        let d = fields.next().ok_or(NMEA2000Error::RawFormatError)?;
         let direction = match d{
             "R" => YDRawDirection::Received,
             "T" => YDRawDirection::Transmitted,
-            _ => return Err(Box::new(YDRawParseError::InvalidField))
+            _ => return Err(NMEA2000Error::RawFormatError)
         };
 
         //Parse Message Id
-        let m = fields.next().ok_or(YDRawParseError::IteratorError)?;
+        let m = fields.next().ok_or(NMEA2000Error::RawFormatError)?;
         let msgid = u32::from_str_radix(m,16)?;
 
         //Derive values from msgid (ISO11783 Bits)
@@ -183,7 +183,7 @@ impl nmea2000::From<String> for Raw{
 
 /// Denotes the direction, i.e., if a package was received or transmitted.
 #[derive(Debug)]
-pub enum YDRawDirection {Received,Transmitted}
+pub enum YDRawDirection { Received,Transmitted }
 
 /// Display trait implementation
 impl fmt::Display for Raw{
@@ -200,25 +200,3 @@ impl fmt::Display for Raw{
         write!(f,"{:02X}",self.data[7])
     }
 }
-
-/* 
- * Error Handling
- */
-/// Error type for the YDRawParser
-#[derive(Debug)]
-pub enum YDRawParseError {
-    IteratorError,
-    InvalidField
-}
-impl std::error::Error for YDRawParseError {}
-
-/// Display trait implementation of YDRawParseError
-impl fmt::Display for YDRawParseError{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-        match &*self {
-            YDRawParseError::IteratorError => write!(f, "Empty Iterator."),
-            YDRawParseError::InvalidField => write!(f, "Invalid input.")
-        }
-    }
-}
-
