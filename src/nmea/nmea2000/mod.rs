@@ -87,10 +87,8 @@ pub enum MessageErr{
 pub struct Parser<T,U>{
     /// Messages are stored here if they are not completely received.
     messages: HashMap<(TSrc, TPgn), Box<dyn Message>>,
-    // Unused variable that is only required in order to have a type `U` for the [`Raw`]'s
-    // implementation of the [`From`] trait.
-    _phantom: marker::PhantomData<U>,
-    _phantom2: marker::PhantomData<T>
+    _raw_type: marker::PhantomData<T>,
+    _ingest_type: marker::PhantomData<U>
 }
 
 impl<T: Raw + From<U>,U> Parser<T,U>{
@@ -107,8 +105,8 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
     pub fn new() -> Self{ 
         Parser::<T,U>{
                     messages: HashMap::new(), 
-                    _phantom: marker::PhantomData, 
-                    _phantom2: marker::PhantomData
+                    _raw_type: marker::PhantomData, 
+                    _ingest_type: marker::PhantomData
                 } 
     }
 
