@@ -18,6 +18,7 @@ pub trait Raw{
     fn prio(&self) -> TPrio;
     fn pgn(&self) -> TPgn;
     fn data(&self) -> TData;
+    fn write(&self, message: &mut Box<dyn Message>) -> Result<(),MessageErr>;
 }
 
 /// Read a `Raw` packet from some type `T`
@@ -25,11 +26,6 @@ pub trait From<T>{
     /// Reads a `Raw` packet from some type `T`.
     fn from(s: &T) -> Result<Self,Box<dyn std::error::Error>> where 
         Self: Raw + Sized;
-}
-
-/// Write a message
-pub trait MessageWriter{
-    fn write(&self, message: &mut Box<dyn Message>) -> Result<(),MessageErr>;
 }
 
 /// Return [`MessageValue`]s. Must implement [`MessageData`].
@@ -97,7 +93,7 @@ pub struct Parser<T,U>{
     _phantom2: marker::PhantomData<T>
 }
 
-impl<T: MessageWriter + Raw + From<U>,U> Parser<T,U>{
+impl<T: Raw + From<U>,U> Parser<T,U>{
     /// Returns a new [`Parser`] 
     /// 
     /// # Examples
@@ -109,7 +105,11 @@ impl<T: MessageWriter + Raw + From<U>,U> Parser<T,U>{
     /// let mut parser = nmea2000::Parser::<yd::Raw,String>::new();
     /// ```
     pub fn new() -> Self{ 
-        Parser::<T,U>{messages: HashMap::new(), _phantom: marker::PhantomData, _phantom2: marker::PhantomData} 
+        Parser::<T,U>{
+                    messages: HashMap::new(), 
+                    _phantom: marker::PhantomData, 
+                    _phantom2: marker::PhantomData
+                } 
     }
 
     /// Parses first the source type `U` into a [`Raw`] and calls then [`Parser::parse_from_raw`] with the newly
