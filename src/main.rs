@@ -17,7 +17,7 @@ use anyhow::{Context, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "SailStats Logger v0.1.0a", 
-            about = "NMEA 2000 logger for navigational messages in YDWG-Raw format.")]
+            about = "NMEA logger for navigational messages.")]
 struct Opt{
     /// Input filename
     #[structopt(short="f", long="file", name="INPUT", parse(from_os_str))]
@@ -33,15 +33,22 @@ struct Opt{
 
     /// Output filename
     #[structopt(short="o", long="output", name="OUTPUT", parse(from_os_str))]
-    output_file: Option<PathBuf>
+    output_file: Option<PathBuf>,
+    
+    /// Use the first GPS message as date/time reference
+    #[structopt(short, long, conflicts_with="INPUT", conflicts_with="systime")]
+    gpstime: bool,
+
+    /// Use the system time as date reference and the packet timestamp as time reference [default]
+    #[structopt(short, long, conflicts_with="INPUT", conflicts_with="gpstime")]
+    systime: bool,
 }
 
-///****************************************************************************
-/// Main
-///****************************************************************************
 fn main() -> Result<()> {
+    /**************************************************************************
+     * Program arguments
+     **************************************************************************/
     let opt = Opt::from_args();
-
     let in_stream: Box<dyn std::io::Read>;
     let out_stream: Box<dyn std::io::Write>;
     let reading_from_file: bool;
@@ -77,6 +84,9 @@ fn main() -> Result<()> {
         writing_to_file = false;
     }
 
+    /**************************************************************************
+     * Main Program logic
+     **************************************************************************/
     let reader = BufReader::new(in_stream);
     let mut writer = BufWriter::new(out_stream);
 
