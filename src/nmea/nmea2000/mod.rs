@@ -122,10 +122,10 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
     /// ```
     pub fn parse(&mut self, src: &U) -> Result<Option<Box<dyn Message>>,NMEA2000Error>{
         let raw = T::from(src)?;
-        Ok(self.parse_from_raw(&raw))
+        Ok(self.parse_from_raw(&raw)?)
     }
 
-    pub fn parse_from_raw(&mut self, raw: &T) -> Option<Box<dyn Message>>{
+    pub fn parse_from_raw(&mut self, raw: &T) -> Result<Option<Box<dyn Message>>,NMEA2000Error>{
         let mut message : Box<dyn Message>;
         if let Some(m) = self.messages.remove(&(raw.src(),raw.pgn())){
             message = m;
@@ -140,25 +140,24 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
                 RateOfTurnMessage::PGN              => Box::new(RateOfTurnMessage::new()),
                 AttitudeMessage::PGN                => Box::new(AttitudeMessage::new()),
                 RudderMessage::PGN                  => Box::new(RudderMessage::new()),
-                _ => return None
+                _ => return Ok(None)
             }
         }
 
-        // There is no error treatment here. It would be possible to use it with an Option, but for
-        // debug purposes it is easier here to keep it like this and modify it in case new raw-writers
-        // are implemented. During normal execution frequent PacketOutOfSequence errors occur, but are
-        // ignored at this point. They seem to be normal for NMEA2000 (at least in my system)
-        if raw.write(&mut message).is_err(){
-            return None
+        match raw.write(&mut message) {
+            Err(NMEA2000Error::PacketOutOfSequence) => return Ok(None),
+            Err(NMEA2000Error::UnexpectedPacketLength) => return Ok(None),
+            Err(e) => return Err(e),
+            Ok(_) => ()
         }
 
         if message.is_complete(){
-            return Some(message)
+            return Ok(Some(message))
         }else{
             self.messages.insert((raw.src(),raw.pgn()), message);
         }
 
-        None
+        Ok(None)
     }
 }
 
