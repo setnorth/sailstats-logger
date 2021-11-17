@@ -17,7 +17,7 @@ use anyhow::{Context, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "SailStats Logger v0.1.0a", 
-            about = "NMEA 2000 logger for navigational messages in YDWG-Raw format.")]
+            about = "NMEA logger for navigational messages.")]
 struct Opt{
     /// Input filename
     #[structopt(short="f", long="file", name="INPUT", parse(from_os_str))]
@@ -33,19 +33,23 @@ struct Opt{
 
     /// Output filename
     #[structopt(short="o", long="output", name="OUTPUT", parse(from_os_str))]
-    output_file: Option<PathBuf>
+    output_file: Option<PathBuf>,
+    
+    /// Use date values that are propagated on the NMEA bus (default is system time, except when reading from file)
+    #[structopt(short, long)]
+    nmea_date: bool,
 }
 
-///****************************************************************************
-/// Main
-///****************************************************************************
 fn main() -> Result<()> {
+    /**************************************************************************
+     * Program arguments
+     **************************************************************************/
     let opt = Opt::from_args();
-
     let in_stream: Box<dyn std::io::Read>;
     let out_stream: Box<dyn std::io::Write>;
     let reading_from_file: bool;
     let writing_to_file: bool;
+    let mut nmea_date: bool = opt.nmea_date; // Can be overwritten if reading from file
     
     //Input args
     if let Some(f) = opt.input_file{
@@ -54,6 +58,7 @@ fn main() -> Result<()> {
                                      .with_context(|| format!("unable to open {}",f.to_str().unwrap()))?
                                     );
         reading_from_file = true;
+        nmea_date = true;
     } else{
         let port = match opt.port {
                     Some(port) => port.to_string(),
@@ -77,11 +82,14 @@ fn main() -> Result<()> {
         writing_to_file = false;
     }
 
+    /**************************************************************************
+     * Main Program logic
+     **************************************************************************/
     let reader = BufReader::new(in_stream);
     let mut writer = BufWriter::new(out_stream);
 
     let mut parser = nmea2000::Parser::<nmea2000::yd::Raw,String>::new();
-    let mut state = State::new();
+    let mut state = State::new(nmea_date);
 
     //Write the headline
     writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
@@ -96,7 +104,7 @@ fn main() -> Result<()> {
             state.update(message);
             if time.elapsed().as_millis() >= opt.interval || reading_from_file {
                 writer.write_all(
-                    format!("{}\n", state)
+                    format!("{}", state)
                     .as_bytes()).context("error writing output")?;
                 if !writing_to_file{ writer.flush().context("unable to flush output")?; }
                 time = Instant::now();

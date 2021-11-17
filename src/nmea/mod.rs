@@ -23,5 +23,8 @@ pub enum MessageValue{
     Pitch(Float),
     Roll(Float),
     RudderAngle(Float),
-    Timestamp(types::Timestamp)
+    Timestamp(types::Timestamp),
+    Date(u16), //Days since 1.1.1970
+    Time(f32), //Seonds since midnight
+    LocalOffset(i16) //Local offset in minutes
 }
