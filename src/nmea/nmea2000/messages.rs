@@ -125,8 +125,12 @@ impl nmea2000::Message for PositionRapidUpdateMessage{
 
 message_type!(GNSSPositionData, 129029, 43, true);
 impl nmea2000::Message for GNSSPositionData{
-    ///Latitude and longitude in degrees
+    ///Days since January 1 1970, Latitude and longitude in degrees
     fn values(&self) -> Vec<MessageValue>{
+        //Days since January 1 1970
+        let date = u16::from_le_bytes([self.data[1],self.data[2]]);
+        let mut time = u32::from_le_bytes([self.data[3],self.data[4],self.data[5],self.data[6]]) as f32;
+        time *= 0.0001;
         //Latitude
         let mut lat = i64::from_le_bytes([ 
             self.data[7],
@@ -149,7 +153,9 @@ impl nmea2000::Message for GNSSPositionData{
             self.data[21],
             self.data[22]]) as f64;
         long *= 0.0000000000000001;
-        vec![Latitude(F64(lat)), 
+        vec![Date(date),
+             Time(time),
+             Latitude(F64(lat)), 
              Longitude(F64(long)),
              Timestamp(self.timestamp)]
     }    
@@ -220,6 +226,19 @@ impl nmea2000::Message for RudderMessage{
     fn values(&self) -> Vec<MessageValue>{
         let ra = i16::from_le_bytes([self.data[4],self.data[5]]) as f32 * 0.0001;
         vec![RudderAngle(F16(ra)),
+             Timestamp(self.timestamp)]
+    }
+}
+
+message_type!(TimeDateMessage, 129033, 8, false);
+impl nmea2000::Message for TimeDateMessage{
+    fn values(&self) -> Vec<MessageValue>{
+        let date = u16::from_le_bytes([self.data[0],self.data[1]]);
+        let time = u32::from_le_bytes([self.data[2],self.data[3],self.data[4],self.data[5]]) as f32 * 0.0001;
+        let offset = i16::from_le_bytes([self.data[6],self.data[7]]);
+        vec![Date(date),
+             Time(time),
+             LocalOffset(offset),
              Timestamp(self.timestamp)]
     }
 }

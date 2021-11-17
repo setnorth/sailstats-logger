@@ -140,6 +140,7 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
                 RateOfTurnMessage::PGN              => Box::new(RateOfTurnMessage::new()),
                 AttitudeMessage::PGN                => Box::new(AttitudeMessage::new()),
                 RudderMessage::PGN                  => Box::new(RudderMessage::new()),
+                TimeDateMessage::PGN                => Box::new(TimeDateMessage::new()),
                 _ => return None
             }
         }
