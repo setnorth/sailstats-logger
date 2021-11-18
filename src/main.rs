@@ -153,7 +153,9 @@ fn main() -> Result<()> {
         writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
     
         //If we are writing to stdout flush immediately
-        if !writing_to_file{ writer.flush().context("unable to flush output")?; } 
+        if !writing_to_file{ 
+            writer.flush().context("unable to flush output")?; 
+        } 
 
         for line in reader.lines(){
             if let Some(message) = parser.parse(&line.context("error processing line")?).context("error parsing line")?{
@@ -161,7 +163,9 @@ fn main() -> Result<()> {
                     writer.write_all(
                         format!("{}", state)
                         .as_bytes()).context("error writing output")?;
-                    if !writing_to_file{ writer.flush().context("unable to flush output")?; }
+                    if !writing_to_file{ 
+                        writer.flush().context("unable to flush output")?; 
+                    }
             }
         }
     }
