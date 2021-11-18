@@ -122,7 +122,7 @@ impl<T: Raw + From<U> + Send,U: Send> Parser<T,U>{
     /// ```
     pub fn parse(&mut self, src: &U) -> Result<Option<Box<dyn Message>>,NMEA2000Error>{
         let raw = T::from(src)?;
-        Ok(self.parse_from_raw(&raw)?)
+        self.parse_from_raw(&raw)
     }
 
     pub fn parse_from_raw(&mut self, raw: &T) -> Result<Option<Box<dyn Message>>,NMEA2000Error>{

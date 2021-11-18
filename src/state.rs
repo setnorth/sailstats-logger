@@ -100,7 +100,7 @@ impl State {
             yaw: 0.0,
             roll: 0.0,
             rudder_angle: 0.0,
-            nmea_date: nmea_date,
+            nmea_date,
             got_nmea_date: false, 
         }
     }
@@ -154,8 +154,8 @@ impl fmt::Display for State{
         if self.nmea_date{
             //Check if we can write out something, i.e., if we have read some nmea date
             if self.got_nmea_date{
-                write!(f,
-                    "{:04}-{:02}-{:02} {:02}:{:02}:{:0>6.3};{:.1};{:.2};{};{};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2}\n",
+                writeln!(f,
+                    "{:04}-{:02}-{:02} {:02}:{:02}:{:0>6.3};{:.1};{:.2};{};{};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2}",
                     self.date_time.year(),self.date_time.month(),self.date_time.day(),self.timestamp.0, self.timestamp.1, self.timestamp.2,self.awa,self.aws,
                     self.latitude,self.longitude,self.hdg,self.cog,self.sog,self.stw,
                     self.rot,self.pitch,self.yaw,self.roll,self.rudder_angle)
@@ -165,8 +165,8 @@ impl fmt::Display for State{
         }else{
             let t = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
             let date_time = NaiveDateTime::from_timestamp(t.as_secs() as i64,0);
-            write!(f,
-                "{:04}-{:02}-{:02} {:02}:{:02}:{:0>6.3};{:.1};{:.2};{};{};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2}\n",
+            writeln!(f,
+                "{:04}-{:02}-{:02} {:02}:{:02}:{:0>6.3};{:.1};{:.2};{};{};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2}",
                 date_time.year(),date_time.month(),date_time.day(),self.timestamp.0, self.timestamp.1, self.timestamp.2,self.awa,self.aws,
                 self.latitude,self.longitude,self.hdg,self.cog,self.sog,self.stw,
                 self.rot,self.pitch,self.yaw,self.roll,self.rudder_angle)
