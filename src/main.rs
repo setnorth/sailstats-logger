@@ -9,8 +9,10 @@ use crate::nmea::nmea2000;
 
 use std::fs::File;
 use std::io::{BufReader, BufRead, BufWriter, Write};
-use std::time::{Instant};
 use std::path::PathBuf;
+use std::thread;
+use std::sync::{Arc,Mutex};
+use std::time::{Instant,Duration};
 
 use structopt::StructOpt;
 use anyhow::{Context, Result};
@@ -28,8 +30,8 @@ struct Opt{
     port: Option<u16>,
 
     /// Interval at which status line is printed in milliseconds when listening for packets
-    #[structopt(short, long, default_value="10")]
-    interval: u128,
+    #[structopt(short, long, default_value="500")]
+    interval: u64,
 
     /// Output filename
     #[structopt(short="o", long="output", name="OUTPUT", parse(from_os_str))]
@@ -40,13 +42,53 @@ struct Opt{
     nmea_date: bool,
 }
 
+fn read_thread<T,U>(
+    reader: BufReader<T>, 
+    parser: &mut nmea2000::Parser<U,String>, 
+    state: Arc<Mutex<State>>) -> Result<()>
+    where
+    T: std::io::Read,
+    U: nmea::nmea2000::Raw + nmea::nmea2000::From<String> + Send,
+    {
+        for line in reader.lines(){
+            if let Some(message) = parser.parse(&line.context("error processing line")?).context("error parsing line")?{
+                state.lock().unwrap().update(message);
+            }
+        }
+        Ok(())
+}
+
+fn write_thread<T: Write>(
+    writer: &mut BufWriter<T>, 
+    state: Arc<Mutex<State>>,
+    interval: u64,
+    writing_to_file: bool) -> Result<()>
+    {
+        //Write the headline
+        writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
+        
+        //If we are writing to stdout flush immediately
+        if !writing_to_file{ writer.flush().context("unable to flush output")?; } 
+        
+        //Main writing loop
+        loop{
+            let s = state.lock().unwrap();
+            writer.write_all(
+                format!("{}", s)
+                .as_bytes()).context("error writing output")?;
+            drop(s);
+            if !writing_to_file{ writer.flush().context("unable to flush output")?; }
+            thread::sleep(Duration::from_millis(interval));
+        }
+}
+
 fn main() -> Result<()> {
     /**************************************************************************
      * Program arguments
      **************************************************************************/
     let opt = Opt::from_args();
-    let in_stream: Box<dyn std::io::Read>;
-    let out_stream: Box<dyn std::io::Write>;
+    let in_stream: Box<dyn std::io::Read+Send>;
+    let out_stream: Box<dyn std::io::Write+Send>;
     let reading_from_file: bool;
     let writing_to_file: bool;
     let mut nmea_date: bool = opt.nmea_date; // Can be overwritten if reading from file
@@ -91,23 +133,40 @@ fn main() -> Result<()> {
     let mut parser = nmea2000::Parser::<nmea2000::yd::Raw,String>::new();
     let mut state = State::new(nmea_date);
 
-    //Write the headline
-    writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
-    
-    //If we are writing to stdout flush immediately
-    if !writing_to_file{ writer.flush().context("unable to flush output")?; } 
+    if !reading_from_file{
+        let state_arc = Arc::new(Mutex::new(state));
 
-    //Start timer for the print out interval
-    let mut time : Instant = Instant::now();
-    for line in reader.lines(){
-        if let Some(message) = parser.parse(&line.context("error processing line")?).context("error parsing line")?{
-            state.update(message);
-            if time.elapsed().as_millis() >= opt.interval || reading_from_file {
-                writer.write_all(
-                    format!("{}", state)
-                    .as_bytes()).context("error writing output")?;
-                if !writing_to_file{ writer.flush().context("unable to flush output")?; }
-                time = Instant::now();
+        let writer_state = Arc::clone(&state_arc);
+        let writer_handle = thread::spawn(move || 
+            write_thread(&mut writer, writer_state, opt.interval, writing_to_file)
+        );
+
+        let reader_state = Arc::clone(&state_arc);
+        let reader_handle = thread::spawn(move ||
+            read_thread(reader, &mut parser, reader_state)
+        );
+    
+        writer_handle.join().unwrap()?;
+        reader_handle.join().unwrap()?;
+    }else{
+        //Write the headline
+        writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
+    
+        //If we are writing to stdout flush immediately
+        if !writing_to_file{ writer.flush().context("unable to flush output")?; } 
+
+        //Start timer for the print out interval
+        let mut time : Instant = Instant::now();
+        for line in reader.lines(){
+            if let Some(message) = parser.parse(&line.context("error processing line")?).context("error parsing line")?{
+                state.update(message);
+                if time.elapsed().as_millis() as u64 >= opt.interval || reading_from_file {
+                    writer.write_all(
+                        format!("{}", state)
+                        .as_bytes()).context("error writing output")?;
+                    if !writing_to_file{ writer.flush().context("unable to flush output")?; }
+                    time = Instant::now();
+                }
             }
         }
     }

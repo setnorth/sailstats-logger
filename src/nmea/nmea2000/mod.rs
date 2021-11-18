@@ -20,7 +20,7 @@ pub trait Raw{
     fn prio(&self) -> TPrio;
     fn pgn(&self) -> TPgn;
     fn data(&self) -> TData;
-    fn write(&self, message: &mut Box<dyn Message>) -> Result<(),NMEA2000Error>;
+    fn write(&self, message: &mut Box<dyn Message+Send>) -> Result<(),NMEA2000Error>;
 }
 
 /// Read a `Raw` packet from some type `T`
@@ -80,12 +80,12 @@ pub trait MessageData{
 /// ```
 pub struct Parser<T,U>{
     /// Messages are stored here if they are not completely received.
-    messages: HashMap<(TSrc, TPgn), Box<dyn Message>>,
+    messages: HashMap<(TSrc, TPgn), Box<dyn Message+Send>>,
     _raw_type: marker::PhantomData<T>,
     _ingest_type: marker::PhantomData<U>
 }
 
-impl<T: Raw + From<U>,U> Parser<T,U>{
+impl<T: Raw + From<U> + Send,U: Send> Parser<T,U>{
     /// Returns a new [`Parser`] 
     /// 
     /// # Examples
@@ -126,7 +126,7 @@ impl<T: Raw + From<U>,U> Parser<T,U>{
     }
 
     pub fn parse_from_raw(&mut self, raw: &T) -> Result<Option<Box<dyn Message>>,NMEA2000Error>{
-        let mut message : Box<dyn Message>;
+        let mut message : Box<dyn Message+Send>;
         if let Some(m) = self.messages.remove(&(raw.src(),raw.pgn())){
             message = m;
         }else{
