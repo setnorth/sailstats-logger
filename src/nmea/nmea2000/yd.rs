@@ -55,7 +55,7 @@ impl nmea2000::Raw for Raw{
     #[inline(always)]
     fn data(&self) -> TData { self.data.to_vec() }
 
-    fn write(&self, m: &mut Box<dyn nmea2000::Message+Send>) -> Result<(),NMEA2000Error>{
+    fn write(&self, m: &mut Box<dyn nmea2000::Message>) -> Result<(),NMEA2000Error>{
         //Is this a fast message?
         //(This part is optimized in the compiler and only present
         // in messages which are consisting of several raw-packets)
