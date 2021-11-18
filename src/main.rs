@@ -12,7 +12,7 @@ use std::io::{BufReader, BufRead, BufWriter, Write};
 use std::path::PathBuf;
 use std::thread;
 use std::sync::{Arc,Mutex};
-use std::time::{Instant,Duration};
+use std::time::Duration;
 
 use structopt::StructOpt;
 use anyhow::{Context, Result};
@@ -30,7 +30,7 @@ struct Opt{
     port: Option<u16>,
 
     /// Interval at which status line is printed in milliseconds when listening for packets
-    #[structopt(short, long, default_value="500")]
+    #[structopt(short, long, default_value="250")]
     interval: u64,
 
     /// Output filename
@@ -155,18 +155,13 @@ fn main() -> Result<()> {
         //If we are writing to stdout flush immediately
         if !writing_to_file{ writer.flush().context("unable to flush output")?; } 
 
-        //Start timer for the print out interval
-        let mut time : Instant = Instant::now();
         for line in reader.lines(){
             if let Some(message) = parser.parse(&line.context("error processing line")?).context("error parsing line")?{
                 state.update(message);
-                if time.elapsed().as_millis() as u64 >= opt.interval || reading_from_file {
                     writer.write_all(
                         format!("{}", state)
                         .as_bytes()).context("error writing output")?;
                     if !writing_to_file{ writer.flush().context("unable to flush output")?; }
-                    time = Instant::now();
-                }
             }
         }
     }
