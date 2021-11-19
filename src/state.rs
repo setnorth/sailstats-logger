@@ -48,11 +48,8 @@ pub struct State{
     /// Angle of rudder deflection in degrees
     pub rudder_angle : f32,
 
-    /// Flag if we should use the date that is propagated by
-    /// the NMEA bus instead of systime. This is useful if the 
-    /// device on which the logger is running on does not have a 
-    /// reliable clock installed.
-    pub nmea_date : bool,
+    /// Flag if we should use the system date.
+    pub sys_date : bool,
     /// Flag if we have received a date/time value completely,
     /// i.e., we know that when we have read "localoffset".
     pub got_nmea_date: bool
@@ -80,7 +77,7 @@ fn to_date_time(days: u16, seconds: f32, localoffset: i16) -> NaiveDateTime{
 
 impl State {
     /// Create new empty State
-    pub fn new(nmea_date: bool) -> State{
+    pub fn new(sys_date: bool) -> State{
         State{
             date_time: NaiveDateTime::from_timestamp(0,0),
             days: 0,
@@ -100,7 +97,7 @@ impl State {
             yaw: 0.0,
             roll: 0.0,
             rudder_angle: 0.0,
-            nmea_date,
+            sys_date,
             got_nmea_date: false, 
         }
     }
@@ -151,7 +148,7 @@ impl State {
 /// Display state implementation for CSV document with separator `;`
 impl fmt::Display for State{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-        if self.nmea_date{
+        if !self.sys_date{
             //Check if we can write out something, i.e., if we have read some nmea date
             if self.got_nmea_date{
                 writeln!(f,

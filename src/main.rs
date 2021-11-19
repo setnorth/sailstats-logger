@@ -37,9 +37,9 @@ struct Opt{
     #[structopt(short="o", long="output", name="OUTPUT", parse(from_os_str))]
     output_file: Option<PathBuf>,
     
-    /// Use date values that are propagated on the NMEA bus (default is system time, except when reading from file)
+    /// Use date values that come from systime.
     #[structopt(short, long)]
-    nmea_date: bool,
+    sys_date: bool,
 }
 
 fn read_thread<T,U>(
@@ -88,7 +88,7 @@ fn main() -> Result<()> {
     let in_stream: Box<dyn std::io::Read+Send>;
     let out_stream: Box<dyn std::io::Write+Send>;
     let reading_from_file: bool;
-    let mut nmea_date: bool = opt.nmea_date; // Can be overwritten if reading from file
+    let mut sys_date: bool = opt.sys_date; // Can be overwritten if reading from file
     
     //Input args
     if let Some(f) = opt.input_file{
@@ -97,7 +97,7 @@ fn main() -> Result<()> {
                             .with_context(|| format!("unable to open {}",f.to_str().unwrap()))?
                     );
         reading_from_file = true;
-        nmea_date = true;
+        sys_date = false;
     } else{
         let port = match opt.port {
                     Some(port) => port.to_string(),
@@ -128,7 +128,7 @@ fn main() -> Result<()> {
     let mut writer = BufWriter::new(out_stream);
 
     let mut parser = nmea2000::Parser::<nmea2000::yd::Raw,String>::new();
-    let mut state = State::new(nmea_date);
+    let mut state = State::new(sys_date);
 
     if !reading_from_file{
         let state_arc = Arc::new(Mutex::new(state));
