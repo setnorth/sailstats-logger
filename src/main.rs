@@ -62,14 +62,11 @@ fn read_thread<T,U>(
 fn write_thread<T: Write>(
         writer: &mut BufWriter<T>, 
         state: Arc<Mutex<State>>,
-        interval: u64,
-        writing_to_file: bool) -> Result<()>
+        interval: u64) -> Result<()>
     {
         //Write the headline
         writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
-        
-        //If we are writing to stdout flush immediately
-        if !writing_to_file{ writer.flush().context("unable to flush output")?; } 
+        writer.flush()?; 
         
         //Main writing loop
         loop{
@@ -77,8 +74,8 @@ fn write_thread<T: Write>(
             writer.write_all(
                 format!("{}", s)
                 .as_bytes()).context("error writing output")?;
-            drop(s);
-            if !writing_to_file{ writer.flush().context("unable to flush output")?; }
+            drop(s); //Dropping state immediately to release lock
+            writer.flush()?;
             thread::sleep(Duration::from_millis(interval));
         }
 }
@@ -91,14 +88,13 @@ fn main() -> Result<()> {
     let in_stream: Box<dyn std::io::Read+Send>;
     let out_stream: Box<dyn std::io::Write+Send>;
     let reading_from_file: bool;
-    let writing_to_file: bool;
     let mut nmea_date: bool = opt.nmea_date; // Can be overwritten if reading from file
     
     //Input args
     if let Some(f) = opt.input_file{
         in_stream = Box::new(
                         File::open(f.to_str().unwrap())
-                                     .with_context(|| format!("unable to open {}",f.to_str().unwrap()))?
+                            .with_context(|| format!("unable to open {}",f.to_str().unwrap()))?
                     );
         reading_from_file = true;
         nmea_date = true;
@@ -121,10 +117,8 @@ fn main() -> Result<()> {
             File::create(f.to_str().unwrap())
                 .with_context(|| format!("could not create file {}", f.to_str().unwrap()))?
         );
-        writing_to_file = true;
     }else{
         out_stream = Box::new(std::io::stdout());
-        writing_to_file = false;
     }
 
     /**************************************************************************
@@ -141,7 +135,7 @@ fn main() -> Result<()> {
 
         let writer_state = Arc::clone(&state_arc);
         let writer_handle = thread::spawn(move || 
-            write_thread(&mut writer, writer_state, opt.interval, writing_to_file)
+            write_thread(&mut writer, writer_state, opt.interval)
         );
 
         let reader_state = Arc::clone(&state_arc);
@@ -155,23 +149,15 @@ fn main() -> Result<()> {
         //Write the headline
         writer.write_all(format!("{}\n",State::headline()).as_bytes())
             .context("unable to write headline")?;
-    
-        //If we are writing to stdout flush immediately
-        if !writing_to_file{ 
-            writer.flush().context("unable to flush output")?; 
-        } 
+        writer.flush()?; 
 
         for line in reader.lines(){
             if let Some(message) = parser.parse(&line.context("error processing line")?)
                 .context("error parsing line")?{
                 state.update(message);
-                    writer.write_all(
-                        format!("{}", state).as_bytes())
-                            .context("error writing output")?;
-                    if !writing_to_file{ 
-                        writer.flush()
-                            .context("unable to flush output")?; 
-                    }
+                writer.write_all(format!("{}", state).as_bytes())
+                    .context("error writing output")?;
+                writer.flush()?;
             }
         }
     }
