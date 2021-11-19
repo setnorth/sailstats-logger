@@ -65,17 +65,25 @@ fn write_thread<T: Write>(
         interval: u64) -> Result<()>
     {
         //Write the headline
-        writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
+        writer.write_all(format!("{}\n",State::headline()).as_bytes())
+            .context("unable to write headline")?;
         writer.flush()?; 
         
+        let s = state.lock().unwrap();
+        let mut timestamp = s.timestamp;
+        drop(s);
+
         //Main writing loop
         loop{
             let s = state.lock().unwrap();
-            writer.write_all(
-                format!("{}", s)
-                .as_bytes()).context("error writing output")?;
-            drop(s); //Dropping state immediately to release lock
-            writer.flush()?;
+            //Write only on state change
+            if timestamp != s.timestamp {
+                writer.write_all(format!("{}", s).as_bytes())
+                    .context("error writing output")?;
+                writer.flush()?;
+            }
+            timestamp = s.timestamp;
+            drop(s);
             thread::sleep(Duration::from_millis(interval));
         }
 }
