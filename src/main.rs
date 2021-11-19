@@ -18,7 +18,7 @@ use structopt::StructOpt;
 use anyhow::{Context, Result};
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "SailStats Logger v0.1.0a", 
+#[structopt(name = format!("SailStats Logger"), 
             about = "NMEA logger for navigational messages.")]
 struct Opt{
     /// Input filename
