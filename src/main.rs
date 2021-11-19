@@ -43,15 +43,16 @@ struct Opt{
 }
 
 fn read_thread<T,U>(
-    reader: BufReader<T>, 
-    parser: &mut nmea2000::Parser<U,String>, 
-    state: Arc<Mutex<State>>) -> Result<()>
+        reader: BufReader<T>, 
+        parser: &mut nmea2000::Parser<U,String>, 
+        state: Arc<Mutex<State>>) -> Result<()>
     where
-    T: std::io::Read,
-    U: nmea::nmea2000::Raw + nmea::nmea2000::From<String> + Send,
+        T: std::io::Read,
+        U: nmea::nmea2000::Raw + nmea::nmea2000::From<String> + Send,
     {
         for line in reader.lines(){
-            if let Some(message) = parser.parse(&line.context("error processing line")?).context("error parsing line")?{
+            if let Some(message) = parser.parse(&line.context("error processing line")?)
+                                        .context("error parsing line")?{
                 state.lock().unwrap().update(message);
             }
         }
@@ -59,10 +60,10 @@ fn read_thread<T,U>(
 }
 
 fn write_thread<T: Write>(
-    writer: &mut BufWriter<T>, 
-    state: Arc<Mutex<State>>,
-    interval: u64,
-    writing_to_file: bool) -> Result<()>
+        writer: &mut BufWriter<T>, 
+        state: Arc<Mutex<State>>,
+        interval: u64,
+        writing_to_file: bool) -> Result<()>
     {
         //Write the headline
         writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
@@ -95,10 +96,10 @@ fn main() -> Result<()> {
     
     //Input args
     if let Some(f) = opt.input_file{
-        in_stream = Box::new(File::open(
-                                    f.to_str().unwrap())
+        in_stream = Box::new(
+                        File::open(f.to_str().unwrap())
                                      .with_context(|| format!("unable to open {}",f.to_str().unwrap()))?
-                                    );
+                    );
         reading_from_file = true;
         nmea_date = true;
     } else{
@@ -108,7 +109,8 @@ fn main() -> Result<()> {
                 };
         let address = format!("0.0.0.0:{}",port);
         in_stream = Box::new(
-                        UdpStream::open(address.clone()).with_context(|| format!("could not open UDP listener on {}",address))?
+                        UdpStream::open(address.clone())
+                            .with_context(|| format!("could not open UDP listener on {}",address))?
                     );
         reading_from_file = false;
     }
@@ -116,7 +118,8 @@ fn main() -> Result<()> {
     //Output args
     if let Some(f) = opt.output_file{
         out_stream = Box::new(
-            File::create(f.to_str().unwrap()).with_context(|| format!("could not create file {}", f.to_str().unwrap()))?
+            File::create(f.to_str().unwrap())
+                .with_context(|| format!("could not create file {}", f.to_str().unwrap()))?
         );
         writing_to_file = true;
     }else{
@@ -150,7 +153,8 @@ fn main() -> Result<()> {
         reader_handle.join().unwrap()?;
     }else{
         //Write the headline
-        writer.write_all(format!("{}\n",State::headline()).as_bytes()).context("unable to write headline")?;
+        writer.write_all(format!("{}\n",State::headline()).as_bytes())
+            .context("unable to write headline")?;
     
         //If we are writing to stdout flush immediately
         if !writing_to_file{ 
@@ -158,13 +162,15 @@ fn main() -> Result<()> {
         } 
 
         for line in reader.lines(){
-            if let Some(message) = parser.parse(&line.context("error processing line")?).context("error parsing line")?{
+            if let Some(message) = parser.parse(&line.context("error processing line")?)
+                .context("error parsing line")?{
                 state.update(message);
                     writer.write_all(
-                        format!("{}", state)
-                        .as_bytes()).context("error writing output")?;
+                        format!("{}", state).as_bytes())
+                            .context("error writing output")?;
                     if !writing_to_file{ 
-                        writer.flush().context("unable to flush output")?; 
+                        writer.flush()
+                            .context("unable to flush output")?; 
                     }
             }
         }
