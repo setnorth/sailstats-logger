@@ -6,4 +6,4 @@ while [ -e "$fname" ]; do
 	printf -v fname '%s%03d.csv' "$basename" "$(( ++index ))"
 done
 
-/home/pi/bin/sailstats-logger -n -o $fname
+/home/pi/bin/sailstats-logger -o $fname
