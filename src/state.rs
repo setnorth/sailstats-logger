@@ -1,89 +1,90 @@
 //! State of the navigational data.
-use crate::nmea::types::Timestamp;
 use crate::nmea::nmea2000;
-use crate::nmea::{MessageValue,Float};
+use crate::nmea::types::Timestamp;
+use crate::nmea::{Float, MessageValue};
 
 use std::f64::consts::PI;
 use std::fmt;
 use std::time::SystemTime;
 
-use chrono::{Datelike,NaiveDateTime};
+use chrono::{Datelike, NaiveDateTime};
 
 /// Keeps the latest values of the navigational data.
-pub struct State{
+pub struct State {
     /// Date & time from system
-    pub date_time : chrono::NaiveDateTime,
+    pub date_time: chrono::NaiveDateTime,
     /// Days since January 1 1970
-    pub days : u16,
+    pub days: u16,
     /// Seconds since midnight
     pub seconds: f32,
     /// Local offset in minutes
     pub localoffset: i16,
     /// Timestamp of latest update to the state
-    pub timestamp : Timestamp,
+    pub timestamp: Timestamp,
     /// Apparent wind angle in degrees
-    pub awa : f32,
+    pub awa: f32,
     /// Apparent wind speed in knots
-    pub aws : f32,
+    pub aws: f32,
     /// Latitude
-    pub latitude : f32,
+    pub latitude: f32,
     /// Longitude
-    pub longitude : f32,
+    pub longitude: f32,
     /// Heading in degrees
-    pub hdg : f32,
+    pub hdg: f32,
     /// Course over ground in degrees
-    pub cog : f32,
+    pub cog: f32,
     /// Speed over ground in knots
-    pub sog : f32,
+    pub sog: f32,
     /// Speed through water in knots
-    pub stw : f32,
+    pub stw: f32,
     /// Rate of turn in degrees/s
-    pub rot : f32,
+    pub rot: f32,
     /// Pitch angle in degrees
-    pub pitch : f32,
+    pub pitch: f32,
     /// Yaw angle in degrees
-    pub yaw : f32,
+    pub yaw: f32,
     /// Roll angle in degrees, i.e., heel angle
-    pub roll : f32,
+    pub roll: f32,
     /// Angle of rudder deflection in degrees
-    pub rudder_angle : f32,
+    pub rudder_angle: f32,
 
     /// Flag if we should use the system date.
-    pub sys_date : bool,
+    pub sys_date: bool,
     /// Flag if we have received a date/time value completely,
     /// i.e., we know that when we have read "localoffset".
-    pub got_nmea_date: bool
+    pub got_nmea_date: bool,
 }
 
 /// Helper function to convert between radians and degrees
 #[inline(always)]
-fn to_degrees(val: f32) -> f32{
+fn to_degrees(val: f32) -> f32 {
     val * 360.0 / 2.0 / PI as f32
 }
 
 /// Helper function to convert between m/s and knots
 #[inline(always)]
-fn to_knots(val: f32) -> f32{
+fn to_knots(val: f32) -> f32 {
     val * 1.943_844_6
 }
 
 /// Helper function to convert days, seconds and offset to a NaiveDateTime
 #[inline(always)]
-fn to_date_time(days: u16, seconds: f32, localoffset: i16) -> NaiveDateTime{
-    NaiveDateTime::from_timestamp(days as i64 * 86_400 
-                                  + seconds as i64
-                                  + (localoffset * 60) as i64,0)
+fn to_date_time(days: u16, seconds: f32, localoffset: i16) -> NaiveDateTime {
+    NaiveDateTime::from_timestamp(
+        days as i64 * 86_400 + seconds as i64 + (localoffset * 60) as i64,
+        0,
+    )
 }
 
 impl State {
     /// Create new empty State
-    pub fn new(sys_date: bool) -> State{
-        State{
-            date_time: NaiveDateTime::from_timestamp(0,0),
+    pub fn new(sys_date: bool) -> State {
+        State {
+            date_time: NaiveDateTime::from_timestamp(0, 0),
             days: 0,
             seconds: 0.0,
             localoffset: 0,
-            timestamp: (0,0,0.0),
+            timestamp: (0, 0, 0.0),
             awa: 0.0,
             aws: 0.0,
             latitude: 0.0,
@@ -98,29 +99,34 @@ impl State {
             roll: 0.0,
             rudder_angle: 0.0,
             sys_date,
-            got_nmea_date: false, 
+            got_nmea_date: false,
         }
     }
 
     /// Print the headline for a CSV document containig all fields seperated by `;`
-    pub fn headline() -> String{
-        String::from("time;awa;aws;latitude;longitude;hdg;cog;sog;stw;rot;pitch;yaw;roll;rudder_angle")
+    pub fn headline() -> String {
+        String::from(
+            "time;awa;aws;latitude;longitude;hdg;cog;sog;stw;rot;pitch;yaw;roll;rudder_angle",
+        )
     }
     /// Update the state with a nmea message value
-    pub fn update(&mut self, message: Box<dyn nmea2000::Message>){
-        for entry in message.values(){
-            match entry{
+    pub fn update(&mut self, message: Box<dyn nmea2000::Message>) {
+        for entry in message.values() {
+            match entry {
                 MessageValue::Timestamp(t) => self.timestamp = t,
-                MessageValue::Date(d) => {  self.days = d;
-                                            self.date_time = to_date_time(self.days, self.seconds, self.localoffset) ; 
-                                         }
-                MessageValue::Time(t) => {  self.seconds = t;
-                                            self.date_time = to_date_time(self.days, self.seconds, self.localoffset) ; 
-                                         }
-                MessageValue::LocalOffset(o) => {   self.localoffset = o;
-                                                    self.date_time = to_date_time(self.days, self.seconds, self.localoffset) ; 
-                                                    self.got_nmea_date = true;
-                                                }
+                MessageValue::Date(d) => {
+                    self.days = d;
+                    self.date_time = to_date_time(self.days, self.seconds, self.localoffset);
+                }
+                MessageValue::Time(t) => {
+                    self.seconds = t;
+                    self.date_time = to_date_time(self.days, self.seconds, self.localoffset);
+                }
+                MessageValue::LocalOffset(o) => {
+                    self.localoffset = o;
+                    self.date_time = to_date_time(self.days, self.seconds, self.localoffset);
+                    self.got_nmea_date = true;
+                }
                 MessageValue::WindSpeed(Float::F16(aws)) => self.aws = to_knots(aws),
                 MessageValue::WindAngle(Float::F16(awa)) => self.awa = to_degrees(awa),
                 MessageValue::Latitude(Float::F32(lat)) => self.latitude = lat,
@@ -136,9 +142,11 @@ impl State {
                 MessageValue::Pitch(Float::F16(pitch)) => self.pitch = to_degrees(pitch),
                 MessageValue::Roll(Float::F16(roll)) => self.roll = to_degrees(roll),
                 //sanity check if plausible value for rudder angle
-                MessageValue::RudderAngle(Float::F16(ra)) => if(ra <= PI as f32) && (ra >= -PI as f32){
-                                                                self.rudder_angle = to_degrees(ra);
-                                                             }
+                MessageValue::RudderAngle(Float::F16(ra)) => {
+                    if (ra <= PI as f32) && (ra >= -PI as f32) {
+                        self.rudder_angle = to_degrees(ra);
+                    }
+                }
                 _ => unimplemented!(),
             }
         }
@@ -146,22 +154,24 @@ impl State {
 }
 
 /// Display state implementation for CSV document with separator `;`
-impl fmt::Display for State{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-        if !self.sys_date{
+impl fmt::Display for State {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if !self.sys_date {
             //Check if we can write out something, i.e., if we have read some nmea date
-            if self.got_nmea_date{
+            if self.got_nmea_date {
                 writeln!(f,
                     "{:04}-{:02}-{:02} {:02}:{:02}:{:0>6.3};{:.1};{:.2};{};{};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2}",
                     self.date_time.year(),self.date_time.month(),self.date_time.day(),self.timestamp.0, self.timestamp.1, self.timestamp.2,self.awa,self.aws,
                     self.latitude,self.longitude,self.hdg,self.cog,self.sog,self.stw,
                     self.rot,self.pitch,self.yaw,self.roll,self.rudder_angle)
-            }else{
+            } else {
                 Ok(())
             }
-        }else{
-            let t = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-            let date_time = NaiveDateTime::from_timestamp(t.as_secs() as i64,0);
+        } else {
+            let t = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap();
+            let date_time = NaiveDateTime::from_timestamp(t.as_secs() as i64, 0);
             writeln!(f,
                 "{:04}-{:02}-{:02} {:02}:{:02}:{:0>6.3};{:.1};{:.2};{};{};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2};{:.2}",
                 date_time.year(),date_time.month(),date_time.day(),self.timestamp.0, self.timestamp.1, self.timestamp.2,self.awa,self.aws,

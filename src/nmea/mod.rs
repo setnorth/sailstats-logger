@@ -1,15 +1,14 @@
 pub mod nmea2000;
 pub mod types;
 
-
-pub enum Float{
+pub enum Float {
     F16(f32),
     F32(f32),
-    F64(f64)
+    F64(f64),
 }
 
 /// Value of a NMEA message
-pub enum MessageValue{
+pub enum MessageValue {
     WindAngle(Float),
     WindSpeed(Float),
     Latitude(Float),
@@ -24,7 +23,7 @@ pub enum MessageValue{
     Roll(Float),
     RudderAngle(Float),
     Timestamp(types::Timestamp),
-    Date(u16), //Days since 1.1.1970
-    Time(f32), //Seonds since midnight
-    LocalOffset(i16) //Local offset in minutes
+    Date(u16),        //Days since 1.1.1970
+    Time(f32),        //Seonds since midnight
+    LocalOffset(i16), //Local offset in minutes
 }
