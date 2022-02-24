@@ -77,9 +77,9 @@ pub trait MessageData {
 /// use nmea::nmea2000;
 /// use nmea::nmea2000::yd;
 ///
-/// let mut parser = nmea2000::Parser::<yd::Raw,String>::new();
+/// let mut parser = nmea2000::Parser::<yd::Raw>::new();
 /// ```
-pub struct Parser<T, U> {
+pub struct Parser<T, U=String> {
     /// Messages are stored here if they are not completely received.
     messages: HashMap<(TSrc, TPgn), Box<dyn Message>>,
     _raw_type: marker::PhantomData<T>,
@@ -95,7 +95,7 @@ impl<T: Raw + From<U>, U> Parser<T, U> {
     /// use nmea::nmea2000;
     /// use nmea::nmea2000::yd;
     ///
-    /// let mut parser = nmea2000::Parser::<yd::Raw,String>::new();
+    /// let mut parser = nmea2000::Parser::<yd::Raw>::new();
     /// ```
     pub fn new() -> Self {
         Parser::<T, U> {
@@ -127,11 +127,10 @@ impl<T: Raw + From<U>, U> Parser<T, U> {
     }
 
     pub fn parse_from_raw(&mut self, raw: &T) -> Result<Option<Box<dyn Message>>, NMEA2000Error> {
-        let mut message: Box<dyn Message>;
-        if let Some(m) = self.messages.remove(&(raw.src(), raw.pgn())) {
-            message = m;
+        let mut message: Box<dyn Message> = if let Some(m) = self.messages.remove(&(raw.src(), raw.pgn())) {
+            m
         } else {
-            message = match raw.pgn() {
+            match raw.pgn() {
                 WindMessage::PGN => Box::new(WindMessage::new()),
                 PositionRapidUpdateMessage::PGN => Box::new(PositionRapidUpdateMessage::new()),
                 GNSSPositionData::PGN => Box::new(GNSSPositionData::new()),
@@ -144,7 +143,7 @@ impl<T: Raw + From<U>, U> Parser<T, U> {
                 TimeDateMessage::PGN => Box::new(TimeDateMessage::new()),
                 _ => return Ok(None),
             }
-        }
+        };
 
         match raw.write(&mut message) {
             Err(NMEA2000Error::PacketOutOfSequence) => return Ok(None),

@@ -98,41 +98,39 @@ fn main() -> Result<()> {
      * Program arguments
      **************************************************************************/
     let opt = Opt::from_args();
-    let in_stream: Box<dyn std::io::Read + Send>;
-    let out_stream: Box<dyn std::io::Write + Send>;
     let reading_from_file: bool;
     let mut sys_date: bool = opt.sys_date; // Can be overwritten if reading from file
 
     //Input args
-    if let Some(f) = opt.input_file {
-        in_stream = Box::new(
-            File::open(f.to_str().unwrap())
-                .with_context(|| format!("unable to open {}", f.to_str().unwrap()))?,
-        );
+    let in_stream: Box<dyn std::io::Read + Send> = if let Some(f) = opt.input_file {
         reading_from_file = true;
         sys_date = false;
+        Box::new(
+            File::open(f.to_str().unwrap())
+                .with_context(|| format!("unable to open {}", f.to_str().unwrap()))?,
+        )
     } else {
         let port = match opt.port {
             Some(port) => port.to_string(),
             None => "1457".to_string(),
         };
         let address = format!("0.0.0.0:{}", port);
-        in_stream = Box::new(
+        reading_from_file = false;
+        Box::new(
             UdpStream::open(address.clone())
                 .with_context(|| format!("could not open UDP listener on {}", address))?,
-        );
-        reading_from_file = false;
-    }
+        )
+    };
 
     //Output args
-    if let Some(f) = opt.output_file {
-        out_stream = Box::new(
+    let out_stream: Box<dyn std::io::Write + Send> = if let Some(f) = opt.output_file {
+        Box::new(
             File::create(f.to_str().unwrap())
                 .with_context(|| format!("could not create file {}", f.to_str().unwrap()))?,
-        );
+        )
     } else {
-        out_stream = Box::new(std::io::stdout());
-    }
+        Box::new(std::io::stdout())
+    };
 
     /**************************************************************************
      * Main Program logic
@@ -140,7 +138,7 @@ fn main() -> Result<()> {
     let reader = BufReader::new(in_stream);
     let mut writer = BufWriter::new(out_stream);
 
-    let mut parser = nmea2000::Parser::<nmea2000::yd::Raw, String>::new();
+    let mut parser = nmea2000::Parser::<nmea2000::yd::Raw>::new();
     let mut state = State::new(sys_date);
 
     if !reading_from_file {
